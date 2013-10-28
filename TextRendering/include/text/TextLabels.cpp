@@ -181,7 +181,7 @@ bool TextLabels::bindShader()
 	if( Text::bindShader() )
 	{
 		Area viewport = gl::getViewport();
-		mShader.uniform( "viewport", Vec4f( viewport.getX1(), viewport.getY1(), viewport.getWidth(), viewport.getHeight() ) );
+		mShader.uniform( "viewport", Vec4f( (float)viewport.getX1(), (float)viewport.getY1(), (float)viewport.getWidth(), (float)viewport.getHeight() ) );
 		return true;
 	}
 
