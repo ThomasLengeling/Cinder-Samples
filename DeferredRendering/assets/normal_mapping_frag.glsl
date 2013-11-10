@@ -10,7 +10,7 @@ uniform	sampler2D	uSpecularMap;
 uniform	sampler2D	uNormalMap;
 uniform	sampler2D	uEmmisiveMap;
 
-uniform bool		bShowNormals;
+uniform bool		bShowNormalMap;
 
 uniform bool		bUseDiffuseMap;
 uniform bool		bUseSpecularMap;
@@ -21,13 +21,13 @@ void main()
 {
 	// fetch the normal from the normal map and modify it using the normal (and tangents) from the 3D mesh
 	vec3	vMappedNormal = texture2D(uNormalMap, gl_TexCoord[0].st).rgb * 2.0 - 1.0;
-	vec3	vSurfaceNormal = bUseNormalMap ? normalize((vTangent * vMappedNormal.x) + (vBiTangent * vMappedNormal.y) + (vNormal * vMappedNormal.z)) : vNormal;	
- 
-	vec3	vToCamera = normalize(-vVertex.xyz); 
+	vec3	vSurfaceNormal = bUseNormalMap ? normalize((vTangent * vMappedNormal.x) + (vBiTangent * vMappedNormal.y) + (vNormal * vMappedNormal.z)) : vNormal;
 
 	// apply each of our light sources
 	vec4	vDiffuseColor	= bUseEmmisiveMap ? texture2D(uEmmisiveMap, gl_TexCoord[0].st) : vec4(0, 0, 0, 1);
 	vec4	vSpecularColor	= vec4(0, 0, 0, 1);
+ 
+	vec3	vToCamera = normalize(-vVertex.xyz); 
 
 	for(int i=0; i<2; ++i)
 	{
@@ -57,6 +57,6 @@ void main()
 	}
 
 	// output colors to buffer
-	gl_FragColor.rgb = bShowNormals ? vSurfaceNormal : (vDiffuseColor + vSpecularColor).rgb;
+	gl_FragColor.rgb = bShowNormalMap ? vSurfaceNormal : (vDiffuseColor + vSpecularColor).rgb;
 	gl_FragColor.a = 1.0;
 }

@@ -31,6 +31,7 @@
 #include "cinder/ImageIo.h"
 #include "cinder/MayaCamUI.h"
 #include "cinder/ObjLoader.h"
+#include "cinder/Perlin.h"
 #include "cinder/Timer.h"
 #include "cinder/TriMesh.h"
 
@@ -80,6 +81,9 @@ private:
 	bool				bAutoRotate;
 	float				fAutoRotateAngle;
 
+	bool				bAnimateLantern;
+	Perlin				mPerlin;
+
 	bool				bEnableDiffuseMap;
 	bool				bEnableSpecularMap;
 	bool				bEnableNormalMap;
@@ -109,6 +113,7 @@ void DeferredRenderingApp::setup()
 	// create a parameter window, so we can toggle stuff
 	mParams = params::InterfaceGl::create( getWindow(), "Normal Mapping Demo", Vec2i(300, 200) );
 	mParams->addParam( "Auto Rotate Model", &bAutoRotate );
+	mParams->addParam( "Animate Light", &bAnimateLantern );
 	mParams->addSeparator();
 	mParams->addParam( "Show Normal Map", &bShowNormalMap );
 	mParams->addParam( "Show Normals & Tangents", &bShowNormalsAndTangents );
@@ -134,6 +139,8 @@ void DeferredRenderingApp::setup()
 	mLightAmbient->setAmbient( Color(0.0f, 0.0f, 0.0f) );
 	mLightAmbient->setDiffuse( Color(0.2f, 0.6f, 1.0f) );
 	mLightAmbient->setSpecular( Color(0.2f, 0.2f, 0.2f) );
+
+	mPerlin = Perlin(4, 65535);
 
 	// default settings
 	bAutoRotate = true;
@@ -239,7 +246,7 @@ void DeferredRenderingApp::draw()
 		{
 			// bind our single pass wireframe shader
 			mShaderWireframe.bind();
-			mShaderWireframe.uniform( "uViewportSize", Vec2f( getWindowSize() ) );
+			mShaderWireframe.uniform( "uViewportSize", Vec2f( getWindowSize() * 2 ) );
 
 			// render our model
 			mMesh->enableDebugging( bShowNormalsAndTangents );
@@ -266,7 +273,8 @@ void DeferredRenderingApp::draw()
 			mLightLantern->enable();
 			mLightAmbient->enable();
 
-			Vec3f lanternPositionOS = Vec3f(12.5f, 30.0f, 12.5f);
+			Vec3f offset = bAnimateLantern ? mPerlin.dfBm( Vec3f( 0.0f, 0.0f, fTime ) ) * 5.0f : Vec3f::zero();
+			Vec3f lanternPositionOS = Vec3f(12.5f, 30.0f, 12.5f) + offset;
 			Vec3f lanternPositionWS = mMesh->getTransform().transformPointAffine( lanternPositionOS );
 			mLightLantern->lookAt( lanternPositionWS, Vec3f(0.0f, 0.5f, 0.0f) );
 		
