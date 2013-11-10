@@ -34,6 +34,8 @@
 #include "cinder/Timer.h"
 #include "cinder/TriMesh.h"
 
+#include "Mesh.h"
+
 using namespace ci;
 using namespace ci::app;
 using namespace std;
@@ -52,8 +54,9 @@ public:
 	void	mouseDown( MouseEvent event );	
 	void	mouseDrag( MouseEvent event );
 
-	bool	isInitialized() const { return (mDiffuseMap && mSpecularMap && mNormalMap 
-												&& mShader && mLightLantern && mLightAmbient && mMesh); }
+	void	keyDown( KeyEvent event );
+
+	bool	isInitialized() const { return (mShader && mLightLantern && mLightAmbient && mMesh); }
 
 private:
 	void			delayedSetup();
@@ -61,9 +64,6 @@ private:
 	gl::VboMeshRef	createDebugMesh(const TriMesh& mesh);
 
 private:
-	Matrix44f			mMeshTransform;
-	AxisAlignedBox3f	mMeshBounds;
-
 	CameraPersp			mCamera;
 	MayaCamUI			mMayaCamera;
 
@@ -71,13 +71,10 @@ private:
 	gl::Light*			mLightAmbient;
 
 	gl::TextureRef		mLoadingMap;
-	gl::TextureRef		mDiffuseMap;
-	gl::TextureRef		mSpecularMap;
-	gl::TextureRef		mNormalMap;
 
 	gl::GlslProg		mShader;
-	gl::VboMeshRef		mMesh;
-	gl::VboMeshRef		mMeshDebug;
+
+	MeshRef				mMesh;
 
 	bool				bAutoRotate;
 	float				fAutoRotateAngle;
@@ -98,6 +95,7 @@ void DeferredRenderingApp::prepareSettings(Settings* settings)
 {
 	settings->setWindowSize( 1024, 768 );
 	settings->setTitle( "Normal Mapping Demo" );
+	settings->setFrameRate( 200.0f );
 }
 
 void DeferredRenderingApp::setup()
@@ -133,8 +131,6 @@ void DeferredRenderingApp::setup()
 	mLightAmbient->setSpecular( Color(0.2f, 0.2f, 0.2f) );
 
 	// default settings
-	mMeshBounds = AxisAlignedBox3f( Vec3f::zero(), Vec3f::one() );
-
 	bAutoRotate = true;
 	fAutoRotateAngle = 0.0f;
 
@@ -153,28 +149,21 @@ void DeferredRenderingApp::delayedSetup()
 {
 	if( isInitialized() ) return;
 
-	// load textures and shaders
+	// load mesh file
 	try {
-		mDiffuseMap = gl::Texture::create( loadImage( loadAsset("leprechaun_diffuse.jpg") ) );
-		mSpecularMap = gl::Texture::create( loadImage( loadAsset("leprechaun_specular.jpg") ) );
-		mNormalMap = gl::Texture::create( loadImage( loadAsset("leprechaun_normal.jpg") ) );
-
-		mShader = gl::GlslProg( loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl") );
+		fs::path mshFile = getAssetPath("") / "leprechaun.msh";
+		mMesh = Mesh::create(mshFile);
+		mMesh->setDiffuseMap( loadImage( loadAsset("leprechaun_diffuse.png") ) );
+		mMesh->setSpecularMap( loadImage( loadAsset("leprechaun_specular.png") ) );
+		mMesh->setNormalMap( loadImage( loadAsset("leprechaun_normal.png") ) );
 	}
 	catch( const std::exception& e ) {
-		console() << "Error loading asset: " << e.what() << std::endl;
+		console() << "Error loading mesh: " << e.what() << std::endl;
 	}
 
-	// load mesh file and create missing data (normals, tangents) if necessary
+	// load shaders
 	try {
-		fs::path objFile = getAssetPath("") / "leprechaun.obj";
-		fs::path mshFile = getAssetPath("") / "leprechaun.msh";
-		TriMesh mesh = createMesh( mshFile, objFile );
-
-		mMesh = gl::VboMesh::create( mesh );
-		mMeshBounds = mesh.calcBoundingBox();
-
-		mMeshDebug = createDebugMesh(mesh);
+		mShader = gl::GlslProg( loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl") );
 	}
 	catch( const std::exception& e ) {
 		console() << "Error loading asset: " << e.what() << std::endl;
@@ -205,12 +194,11 @@ void DeferredRenderingApp::update()
 	}
 	
 	// rotate the mesh
-	if(bAutoRotate) {
+	if(bAutoRotate && mMesh) {
 		fAutoRotateAngle += (fElapsed * 0.2f);
 
-		mMeshTransform.setToIdentity();
-		mMeshTransform.rotate( Vec3f::yAxis(), fAutoRotateAngle );
-		mMeshTransform.scale( Vec3f::one() / mMeshBounds.getSize().y );
+		mMesh->setOrientation( Vec3f::yAxis() * fAutoRotateAngle );
+		mMesh->setScale( mMesh->getUnitScale() );
 	}
 }
 
@@ -237,11 +225,6 @@ void DeferredRenderingApp::draw()
 		gl::enableDepthRead();
 		gl::enableDepthWrite();
 
-		// bind textures
-		mDiffuseMap->enableAndBind();
-		mSpecularMap->bind(1);
-		mNormalMap->bind(2);
-
 		// bind our normal mapping shader
 		mShader.bind();
 		mShader.uniform( "uDiffuseMap", 0 );
@@ -257,16 +240,14 @@ void DeferredRenderingApp::draw()
 		mLightAmbient->enable();
 
 		Vec3f lanternPositionOS = Vec3f(12.5f, 30.0f, 12.5f);
-		Vec3f lanternPositionWS = mMeshTransform.transformPointAffine( lanternPositionOS );
+		Vec3f lanternPositionWS = mMesh->getTransform().transformPointAffine( lanternPositionOS );
 		mLightLantern->lookAt( lanternPositionWS, Vec3f(0.0f, 0.5f, 0.0f) );
 		
 		mLightAmbient->lookAt( mCamera.getEyePoint(), mCamera.getCenterOfInterestPoint() );
 	
 		// render our model
-		gl::pushModelView();
-		gl::multModelView( mMeshTransform );
-		gl::draw( mMesh );
-		gl::popModelView();
+		mMesh->enableDebugging( bShowNormalsAndTangents );
+		mMesh->render();
 
 		// disable our lights
 		mLightAmbient->disable();
@@ -274,17 +255,6 @@ void DeferredRenderingApp::draw()
 
 		// disable our shader
 		mShader.unbind();
-
-		// unbind textures
-		gl::disable( mDiffuseMap->getTarget() );
-	
-		// render normals, tangents and bitangents if necessary
-		if(bShowNormalsAndTangents) {
-			gl::pushModelView();
-			gl::multModelView( mMeshTransform );
-			gl::draw( mMeshDebug );
-			gl::popModelView();
-		}
 
 		// get ready to render in 2D again
 		gl::disableDepthWrite();
@@ -315,90 +285,20 @@ void DeferredRenderingApp::mouseDrag( MouseEvent event )
 	mCamera = mMayaCamera.getCamera();
 }
 
-TriMesh DeferredRenderingApp::createMesh(const fs::path& mshFile, const fs::path& objFile)
-{	
-	TriMesh mesh;	
-	Timer	timer;
-
-	// try to load the msh file (fast), or create it from the obj file (slow)
-	timer.start();
-	if(fs::exists(mshFile))
-		mesh.read( loadFile(mshFile) );
-	else 
-		ObjLoader( loadFile(objFile) ).load(&mesh); 
-	console() << "Loading the mesh took " << timer.getSeconds() << " seconds." << std::endl;
-
-	// create normals and tangents if necessary
-	bool hasChanged = !fs::exists(mshFile);
-
-	// if the mesh does not have normals, calculate them on-the-fly
-	if(!mesh.hasNormals()) {
-		timer.start();
-		mesh.recalculateNormals(); 
-		hasChanged = true;
-		console() << "Calculating " << mesh.getNumVertices() << " normals took " << timer.getSeconds() << " seconds." << std::endl;
-	}
-
-	// if the mesh does not have tangents, calculate them on-the-fly
-	//  (note: your model needs to have normals and texture coordinates for this to work)
-	if(!mesh.hasTangents()) {
-		timer.start();
-		mesh.recalculateTangents(); 
-		hasChanged = true;
-		console() << "Calculating " << mesh.getNumVertices() << " tangents took " << timer.getSeconds() << " seconds." << std::endl;
-	}
-
-	// export msh file if necessary
-	if(hasChanged) {
-		timer.start();
-		mesh.write( writeFile(mshFile) );
-		console() << "Saving the mesh took " << timer.getSeconds() << " seconds." << std::endl;
-	}
-
-	return mesh;
-}
-
-gl::VboMeshRef DeferredRenderingApp::createDebugMesh(const TriMesh& mesh)
+void DeferredRenderingApp::keyDown( KeyEvent event )
 {
-	// create a debug mesh, showing normals, tangents and bitangents
-	size_t numVertices = mesh.getNumVertices();
-
-	std::vector<Vec3f>		vertices;	vertices.reserve( numVertices * 4 );
-	std::vector<Color>		colors;		colors.reserve( numVertices * 4 );
-	std::vector<uint32_t>	indices;	indices.reserve( numVertices * 6 );
-
-	for(size_t i=0;i<numVertices;++i) {
-		uint32_t idx = vertices.size();
-
-		vertices.push_back( mesh.getVertices()[i] );
-		vertices.push_back( mesh.getVertices()[i] + mesh.getTangents()[i] );
-		vertices.push_back( mesh.getVertices()[i] + mesh.getNormals()[i].cross(mesh.getTangents()[i]) );
-		vertices.push_back( mesh.getVertices()[i] + mesh.getNormals()[i] );
-
-		colors.push_back( Color(0, 0, 0) );	// base vertices black
-		colors.push_back( Color(1, 0, 0) );	// tangents (along u-coordinate) red
-		colors.push_back( Color(0, 1, 0) ); // bitangents (along v-coordinate) green
-		colors.push_back( Color(0, 0, 1) ); // normals blue
-
-		indices.push_back( idx );
-		indices.push_back( idx + 1 );
-		indices.push_back( idx );
-		indices.push_back( idx + 2 );
-		indices.push_back( idx );
-		indices.push_back( idx + 3 );
+	switch( event.getCode() )
+	{
+	case KeyEvent::KEY_ESCAPE:
+		quit();
+		break;
+	case KeyEvent::KEY_f:
+		setFullScreen( !isFullScreen() );
+		break;
+	case KeyEvent::KEY_v:
+		gl::enableVerticalSync( !gl::isVerticalSyncEnabled() );
+		break;
 	}
-
-	gl::VboMesh::Layout layout;
-	layout.setStaticPositions();
-	layout.setStaticColorsRGB();
-	layout.setStaticIndices();
-	
-	gl::VboMeshRef result = gl::VboMesh::create( numVertices * 4, numVertices * 6, layout, GL_LINES );
-	result->bufferPositions( vertices );
-	result->bufferColorsRGB( colors );
-	result->bufferIndices( indices );
-
-	return result;
 }
 
 CINDER_APP_NATIVE( DeferredRenderingApp, RendererGl )

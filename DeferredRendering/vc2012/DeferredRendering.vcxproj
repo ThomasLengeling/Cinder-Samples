@@ -50,7 +50,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\include;..\..\..\cinder_master\include;..\..\..\cinder_master\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\src;..\..\..\cinder_master\include;..\..\..\cinder_master\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NOMINMAX;_WIN32_WINNT=0x0502;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -76,7 +76,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\include;..\..\..\cinder_master\include;..\..\..\cinder_master\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\src;..\..\..\cinder_master\include;..\..\..\cinder_master\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NOMINMAX;_WIN32_WINNT=0x0502;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader />
@@ -108,9 +108,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\DeferredRenderingApp.cpp" />
+    <ClCompile Include="..\src\Mesh.cpp" />
+    <ClCompile Include="..\src\RenderPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\Resources.h" />
+    <ClInclude Include="..\src\Mesh.h" />
+    <ClInclude Include="..\src\RenderPass.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\assets\normal_mapping_frag.glsl" />
