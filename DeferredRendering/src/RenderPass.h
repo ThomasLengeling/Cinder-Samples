@@ -29,17 +29,25 @@
 
 #include "Mesh.h"
 
+typedef std::shared_ptr<class RenderPass> RenderPassRef;
+
 class RenderPass
 {
 public:
 	enum DownScaleSize { ORIGINAL = 0, HALF, QUARTER, EIGHT };
 
-	RenderPass(void) : mDownScaleSize(ORIGINAL), mNumColorBuffers(1), mHasDepthBuffer(true) {}
+	RenderPass(void) : 
+		mDownScaleSize(ORIGINAL) {}
+	RenderPass( const ci::gl::Fbo::Format& format ) : 
+		mDownScaleSize(ORIGINAL),
+		mFormat(format) {}
 	~RenderPass(void);
+
+	static RenderPassRef	create( const ci::gl::Fbo::Format& format );
 
 	void	resize(int width, int height);
 	void	render(const ci::CameraPersp& camera);
-	void	renderFullScreen();
+	void	render();
 
 	void	attachTexture(int slot, ci::gl::TextureRef texture);
 	void	detachTexture(int slot);
@@ -47,13 +55,17 @@ public:
 	void	addMesh(MeshRef mesh);
 	void	removeMesh(MeshRef mesh);
 
-	void	loadShader(const ci::fs::path& vertex, const ci::fs::path& fragment);
-	void	loadShader(const ci::fs::path& vertex,  const ci::fs::path& geometry, const ci::fs::path& fragment);
+	void	loadShader(const ci::DataSourceRef vertex, const ci::DataSourceRef fragment);
+	void	loadShader(const ci::DataSourceRef vertex,  const ci::DataSourceRef geometry, const ci::DataSourceRef fragment);
 	void	setShaderCallback() {} // TODO: will call supplied function with shader as param to set uniforms
 	void	resetShaderCallback() {}
 
-	ci::gl::TextureRef	getTexture(int slot) const;
-	ci::gl::TextureRef	getDepthTexture() const;
+	ci::gl::GlslProg	getShader() { return mInputShader; }
+
+	ci::gl::Texture		getTexture(int slot);
+	ci::gl::Texture		getDepthTexture();
+
+	void	setDownScaleSize(DownScaleSize size) { mDownScaleSize = size; }
 
 private:
 	std::vector<ci::gl::TextureRef>	mInputTextures;
@@ -62,9 +74,7 @@ private:
 
 	DownScaleSize					mDownScaleSize;
 
-	int								mNumColorBuffers;
-	bool							mHasDepthBuffer;
-
+	ci::gl::Fbo::Format				mFormat;
 	ci::gl::Fbo						mFrameBuffer;
 };
 

@@ -36,6 +36,7 @@
 #include "cinder/TriMesh.h"
 
 #include "Mesh.h"
+#include "RenderPass.h"
 
 using namespace ci;
 using namespace ci::app;
@@ -78,6 +79,9 @@ private:
 
 	MeshRef				mMesh;
 
+	RenderPassRef		mNormalAndDepthPass;
+	RenderPassRef		mSSAOPass;
+
 	bool				bAutoRotate;
 	float				fAutoRotateAngle;
 
@@ -111,7 +115,7 @@ void DeferredRenderingApp::setup()
 	mLoadingMap  = gl::Texture::create( loadImage( loadAsset("loading.png") ) );
 
 	// create a parameter window, so we can toggle stuff
-	mParams = params::InterfaceGl::create( getWindow(), "Normal Mapping Demo", Vec2i(300, 200) );
+	mParams = params::InterfaceGl::create( getWindow(), "Normal Mapping Demo", Vec2i(320, 240) );
 	mParams->addParam( "Auto Rotate Model", &bAutoRotate );
 	mParams->addParam( "Animate Light", &bAnimateLantern );
 	mParams->addSeparator();
@@ -141,6 +145,19 @@ void DeferredRenderingApp::setup()
 	mLightAmbient->setSpecular( Color(0.2f, 0.2f, 0.2f) );
 
 	mPerlin = Perlin(4, 65535);
+
+	// setup render passes
+	gl::Fbo::Format fmt;
+	fmt.setSamples(0);
+
+	fmt.setColorInternalFormat( GL_RG16F );
+	fmt.enableDepthBuffer(true, true);
+	mNormalAndDepthPass = RenderPass::create( fmt );
+	
+	fmt.setColorInternalFormat( GL_R16F );
+	fmt.enableDepthBuffer(false);
+	mSSAOPass = RenderPass::create( fmt );
+	mSSAOPass->setDownScaleSize( RenderPass::HALF );
 
 	// default settings
 	bAutoRotate = true;
@@ -185,6 +202,16 @@ void DeferredRenderingApp::delayedSetup()
 	catch( const std::exception& e ) {
 		console() << "Error loading mesh: " << e.what() << std::endl;
 	}
+
+	// setup passes
+	mNormalAndDepthPass->loadShader( loadAsset("normals_depth_vert.glsl"), loadAsset("normals_depth_frag.glsl") );
+	mNormalAndDepthPass->getShader().bind();
+	mNormalAndDepthPass->getShader().uniform( "uNormalMap", 2 );
+	mNormalAndDepthPass->getShader().uniform( "uHasNormalMap", true );
+	mNormalAndDepthPass->getShader().unbind();
+	mNormalAndDepthPass->addMesh( mMesh );
+
+	mSSAOPass->loadShader( loadAsset("ssao_vert.glsl"), loadAsset("ssao_frag.glsl") );
 }
 
 void DeferredRenderingApp::shutdown()
@@ -235,6 +262,8 @@ void DeferredRenderingApp::draw()
 	}
 	else
 	{
+		mNormalAndDepthPass->render( mCamera );
+
 		// get ready to draw in 3D
 		gl::pushMatrices();
 		gl::setMatrices( mCamera );
@@ -256,7 +285,7 @@ void DeferredRenderingApp::draw()
 			mShaderWireframe.unbind();
 		}
 		else
-		{
+		{			
 			// bind our normal mapping shader
 			mShaderLighting.bind();
 			mShaderLighting.uniform( "uDiffuseMap", 0 );
@@ -307,6 +336,8 @@ void DeferredRenderingApp::draw()
 void DeferredRenderingApp::resize()
 {
 	mCamera.setAspectRatio( getWindowAspectRatio() );
+	mNormalAndDepthPass->resize( getWindowWidth(), getWindowHeight() );
+	mSSAOPass->resize( getWindowWidth(), getWindowHeight() );
 }
 
 void DeferredRenderingApp::mouseDown( MouseEvent event )

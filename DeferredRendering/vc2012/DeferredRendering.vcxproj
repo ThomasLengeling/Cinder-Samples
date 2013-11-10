@@ -117,8 +117,12 @@
     <ClInclude Include="..\src\RenderPass.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\assets\normals_depth_frag.glsl" />
+    <None Include="..\assets\normals_depth_vert.glsl" />
     <None Include="..\assets\normal_mapping_frag.glsl" />
     <None Include="..\assets\normal_mapping_vert.glsl" />
+    <None Include="..\assets\ssao_frag.glsl" />
+    <None Include="..\assets\ssao_vert.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

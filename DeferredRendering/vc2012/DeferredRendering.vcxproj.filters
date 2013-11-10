@@ -57,5 +57,17 @@
     <None Include="..\assets\normal_mapping_vert.glsl">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="..\assets\normals_depth_vert.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\normals_depth_frag.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\ssao_vert.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\ssao_frag.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
