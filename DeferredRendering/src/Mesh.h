@@ -15,7 +15,7 @@ public:
 	static MeshRef			create();
 	static MeshRef			create( const ci::fs::path& mshFile );
 
-	void					render();
+	void					render( bool textured = true );
 
 	ci::TriMesh&			getMesh() { return mTriMesh; }
 	ci::gl::VboMeshRef		getVertexBuffer() { return mVboMeshRef; }
@@ -43,10 +43,13 @@ public:
 	ci::gl::TextureRef		getSpecularMap() { return mSpecularMapRef; }
 	bool					hasNormalMap() const { return mNormalMapRef != ci::gl::TextureRef(); }
 	ci::gl::TextureRef		getNormalMap() { return mNormalMapRef; }
+	bool					hasEmmisiveMap() const { return mEmmisiveMapRef != ci::gl::TextureRef(); }
+	ci::gl::TextureRef		getEmmisiveMap() { return mEmmisiveMapRef; }
 
 	void					setDiffuseMap(const ci::ImageSourceRef source) { mDiffuseMapRef = ci::gl::Texture::create(source); }
 	void					setSpecularMap(const ci::ImageSourceRef source) { mSpecularMapRef = ci::gl::Texture::create(source); }
 	void					setNormalMap(const ci::ImageSourceRef source) { mNormalMapRef = ci::gl::Texture::create(source); }
+	void					setEmmisiveMap(const ci::ImageSourceRef source) { mEmmisiveMapRef = ci::gl::Texture::create(source); }
 
 	void					enableDebugging( bool enable = true );
 	void					disableDebugging();
@@ -75,5 +78,6 @@ private:
 	ci::gl::TextureRef		mDiffuseMapRef;
 	ci::gl::TextureRef		mSpecularMapRef;
 	ci::gl::TextureRef		mNormalMapRef;
+	ci::gl::TextureRef		mEmmisiveMapRef;
 };
 

@@ -56,7 +56,7 @@ public:
 
 	void	keyDown( KeyEvent event );
 
-	bool	isInitialized() const { return (mShader && mLightLantern && mLightAmbient && mMesh); }
+	bool	isInitialized() const { return (mShaderLighting && mLightLantern && mLightAmbient && mMesh); }
 
 private:
 	void			delayedSetup();
@@ -72,7 +72,8 @@ private:
 
 	gl::TextureRef		mLoadingMap;
 
-	gl::GlslProg		mShader;
+	gl::GlslProg		mShaderLighting;
+	gl::GlslProg		mShaderWireframe;
 
 	MeshRef				mMesh;
 
@@ -82,9 +83,11 @@ private:
 	bool				bEnableDiffuseMap;
 	bool				bEnableSpecularMap;
 	bool				bEnableNormalMap;
+	bool				bEnableEmmisiveMap;
 
 	bool				bShowNormalsAndTangents;
-	bool				bShowNormals;
+	bool				bShowNormalMap;
+	bool				bShowWireframe;
 
 	float				fTime;
 
@@ -107,12 +110,14 @@ void DeferredRenderingApp::setup()
 	mParams = params::InterfaceGl::create( getWindow(), "Normal Mapping Demo", Vec2i(300, 200) );
 	mParams->addParam( "Auto Rotate Model", &bAutoRotate );
 	mParams->addSeparator();
+	mParams->addParam( "Show Normal Map", &bShowNormalMap );
 	mParams->addParam( "Show Normals & Tangents", &bShowNormalsAndTangents );
-	mParams->addParam( "Show Normals", &bShowNormals );
+	mParams->addParam( "Show Wireframe", &bShowWireframe );
 	mParams->addSeparator();
 	mParams->addParam( "Enable Diffuse Map", &bEnableDiffuseMap );
 	mParams->addParam( "Enable Specular Map", &bEnableSpecularMap );
 	mParams->addParam( "Enable Normal Map", &bEnableNormalMap );
+	mParams->addParam( "Enable Emmisive Map", &bEnableEmmisiveMap );
 
 	// setup camera and lights
 	mCamera.setEyePoint( Vec3f( 0.2f, 0.4f, 1.8f ) );
@@ -137,9 +142,11 @@ void DeferredRenderingApp::setup()
 	bEnableDiffuseMap = true;
 	bEnableSpecularMap = true;
 	bEnableNormalMap = true;
+	bEnableEmmisiveMap= true;
 
 	bShowNormalsAndTangents = false;
-	bShowNormals = false;
+	bShowNormalMap = false;
+	bShowWireframe = false;
 
 	// keep track of time
 	fTime = (float) getElapsedSeconds();
@@ -149,6 +156,16 @@ void DeferredRenderingApp::delayedSetup()
 {
 	if( isInitialized() ) return;
 
+	// load shaders
+	try {
+		mShaderLighting = gl::GlslProg( loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl") );
+		mShaderWireframe = gl::GlslProg( loadAsset("wireframe_vert.glsl"), loadAsset("wireframe_frag.glsl"), loadAsset("wireframe_geom.glsl"),
+			GL_TRIANGLES, GL_TRIANGLE_STRIP, 3 );
+	}
+	catch( const std::exception& e ) {
+		console() << "Error loading asset: " << e.what() << std::endl;
+	}
+
 	// load mesh file
 	try {
 		fs::path mshFile = getAssetPath("") / "leprechaun.msh";
@@ -156,17 +173,10 @@ void DeferredRenderingApp::delayedSetup()
 		mMesh->setDiffuseMap( loadImage( loadAsset("leprechaun_diffuse.png") ) );
 		mMesh->setSpecularMap( loadImage( loadAsset("leprechaun_specular.png") ) );
 		mMesh->setNormalMap( loadImage( loadAsset("leprechaun_normal.png") ) );
+		mMesh->setEmmisiveMap( loadImage( loadAsset("leprechaun_emmisive.png") ) );
 	}
 	catch( const std::exception& e ) {
 		console() << "Error loading mesh: " << e.what() << std::endl;
-	}
-
-	// load shaders
-	try {
-		mShader = gl::GlslProg( loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl") );
-	}
-	catch( const std::exception& e ) {
-		console() << "Error loading asset: " << e.what() << std::endl;
 	}
 }
 
@@ -225,36 +235,54 @@ void DeferredRenderingApp::draw()
 		gl::enableDepthRead();
 		gl::enableDepthWrite();
 
-		// bind our normal mapping shader
-		mShader.bind();
-		mShader.uniform( "uDiffuseMap", 0 );
-		mShader.uniform( "uSpecularMap", 1 );
-		mShader.uniform( "uNormalMap", 2 );
-		mShader.uniform( "bShowNormals", bShowNormals );
-		mShader.uniform( "bUseDiffuseMap", bEnableDiffuseMap );
-		mShader.uniform( "bUseSpecularMap", bEnableSpecularMap );
-		mShader.uniform( "bUseNormalMap", bEnableNormalMap );
+		if(bShowWireframe)
+		{
+			// bind our single pass wireframe shader
+			mShaderWireframe.bind();
+			mShaderWireframe.uniform( "uViewportSize", Vec2f( getWindowSize() ) );
 
-		// enable our lights
-		mLightLantern->enable();
-		mLightAmbient->enable();
+			// render our model
+			mMesh->enableDebugging( bShowNormalsAndTangents );
+			mMesh->render(false);
 
-		Vec3f lanternPositionOS = Vec3f(12.5f, 30.0f, 12.5f);
-		Vec3f lanternPositionWS = mMesh->getTransform().transformPointAffine( lanternPositionOS );
-		mLightLantern->lookAt( lanternPositionWS, Vec3f(0.0f, 0.5f, 0.0f) );
+			// disable our shader
+			mShaderWireframe.unbind();
+		}
+		else
+		{
+			// bind our normal mapping shader
+			mShaderLighting.bind();
+			mShaderLighting.uniform( "uDiffuseMap", 0 );
+			mShaderLighting.uniform( "uSpecularMap", 1 );
+			mShaderLighting.uniform( "uNormalMap", 2 );
+			mShaderLighting.uniform( "uEmmisiveMap", 3 );
+			mShaderLighting.uniform( "bShowNormalMap", bShowNormalMap );
+			mShaderLighting.uniform( "bUseDiffuseMap", bEnableDiffuseMap );
+			mShaderLighting.uniform( "bUseSpecularMap", bEnableSpecularMap );
+			mShaderLighting.uniform( "bUseNormalMap", bEnableNormalMap );
+			mShaderLighting.uniform( "bUseEmmisiveMap", bEnableEmmisiveMap );
+
+			// enable our lights
+			mLightLantern->enable();
+			mLightAmbient->enable();
+
+			Vec3f lanternPositionOS = Vec3f(12.5f, 30.0f, 12.5f);
+			Vec3f lanternPositionWS = mMesh->getTransform().transformPointAffine( lanternPositionOS );
+			mLightLantern->lookAt( lanternPositionWS, Vec3f(0.0f, 0.5f, 0.0f) );
 		
-		mLightAmbient->lookAt( mCamera.getEyePoint(), mCamera.getCenterOfInterestPoint() );
+			mLightAmbient->lookAt( mCamera.getEyePoint(), mCamera.getCenterOfInterestPoint() );
 	
-		// render our model
-		mMesh->enableDebugging( bShowNormalsAndTangents );
-		mMesh->render();
+			// render our model
+			mMesh->enableDebugging( bShowNormalsAndTangents );
+			mMesh->render();
 
-		// disable our lights
-		mLightAmbient->disable();
-		mLightLantern->disable();
+			// disable our lights
+			mLightAmbient->disable();
+			mLightLantern->disable();
 
-		// disable our shader
-		mShader.unbind();
+			// disable our shader
+			mShaderLighting.unbind();
+		}
 
 		// get ready to render in 2D again
 		gl::disableDepthWrite();

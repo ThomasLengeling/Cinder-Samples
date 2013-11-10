@@ -28,28 +28,40 @@ MeshRef Mesh::create( const ci::fs::path& mshFile )
 	return mesh;
 }
 
-void Mesh::render()
+void Mesh::render( bool textured )
 {
 	//
 	if(!mVboMeshRef && !createMesh())
 		return;
-
+	
 	//
 	gl::SaveTextureBindState savedTextureBindState( GL_TEXTURE_2D );
 
-	if(mDiffuseMapRef)
-		mDiffuseMapRef->bind(0);
+	if(textured)
+	{
 
-	if(mSpecularMapRef)
-		mSpecularMapRef->bind(1);
+		if(mDiffuseMapRef)
+			mDiffuseMapRef->bind(0);
 
-	if(mNormalMapRef)
-		mNormalMapRef->bind(2);
+		if(mSpecularMapRef)
+			mSpecularMapRef->bind(1);
+
+		if(mNormalMapRef)
+			mNormalMapRef->bind(2);
+
+		if(mEmmisiveMapRef)
+			mEmmisiveMapRef->bind(3);
+
+		glEnable( GL_TEXTURE_2D );
+	}
+	else
+	{
+		glDisable( GL_TEXTURE_2D );
+	}
 
 	gl::pushModelView();
 	{
 		gl::multModelView( getTransform() );
-		gl::enable( GL_TEXTURE_2D );
 		gl::draw( mVboMeshRef );
 
 		//
