@@ -27,11 +27,6 @@
 using namespace ci;
 using namespace ci::app;
 
-RenderPassRef RenderPass::create(const ci::gl::Fbo::Format& format)
-{
-	return RenderPassRef( new RenderPass(format) );
-}
-
 void RenderPass::clear( const ci::ColorA& color )
 {
 	gl::SaveFramebufferBinding	savedFramebufferBinding;
@@ -47,6 +42,9 @@ void RenderPass::clear( const ci::ColorA& color )
 
 void RenderPass::resize(int width, int height)
 {
+	// detach all existing textures, so they can be destroyed
+	mInputTextures.clear();
+
 	// create the frame buffer
 	mFrameBuffer = gl::Fbo( width >> mDownScaleSize, height >> mDownScaleSize, mFormat );
 }
@@ -59,38 +57,49 @@ void RenderPass::render()
 
 	glPushAttrib( GL_ENABLE_BIT | GL_VIEWPORT_BIT );
 
-	mFrameBuffer.bindFramebuffer();
-
-	gl::setViewport( mFrameBuffer.getBounds() );
-	gl::pushMatrices();
-	gl::setMatricesWindow( mFrameBuffer.getSize(), true );
+	// bind frame buffer if available, otherwise output to main buffer
+	if(mFrameBuffer)
 	{
-		// no clear necessary, we're doing a full screen pass
+		mFrameBuffer.bindFramebuffer();
+		gl::setViewport( mFrameBuffer.getBounds() );
 
-		if(mInputShader)
-			mInputShader.bind();
-
-		//
-		for(size_t i=0;i<mInputTextures.size();++i)
-		{
-			if(mInputTextures[i])
-			{
-				glEnable( mInputTextures[i].getTarget() );
-				mInputTextures[i].bind(i);
-			}
-		}
-
-		gl::color( Color::white() );
-
-		// we have to draw this rectangle upside down because of the flipped nature of Cinder's textures
-		gl::drawSolidRect( mFrameBuffer.getBounds() );
-
-		if(mInputShader)
-			mInputShader.unbind();
+		gl::pushMatrices();
+		gl::setMatricesWindow( mFrameBuffer.getSize(), true );
 	}
+	else
+	{
+		gl::pushMatrices();
+	}
+
+	// clear
+	gl::clear();
+
+	// bind shader
+	if(mInputShader)
+		mInputShader.bind();
+
+	// bind textures
+	for(size_t i=0;i<mInputTextures.size();++i)
+	{
+		if(mInputTextures[i])
+		{
+			glEnable( mInputTextures[i].getTarget() );
+			mInputTextures[i].bind(i);
+		}
+	}
+
+	// full screen pass
+	gl::color( Color::white() );
+	gl::drawSolidRect( mFrameBuffer.getBounds() );
+
+	// unbind shader and restore state
+	if(mInputShader)
+		mInputShader.unbind();
+
 	gl::popMatrices();
 
-	mFrameBuffer.unbindFramebuffer();
+	if(mFrameBuffer)
+		mFrameBuffer.unbindFramebuffer();
 
 	glPopAttrib();
 }
@@ -103,15 +112,24 @@ void RenderPass::render(const ci::CameraPersp& camera)
 
 	glPushAttrib( GL_ENABLE_BIT | GL_VIEWPORT_BIT );
 
-	mFrameBuffer.bindFramebuffer();
-	gl::setViewport( mFrameBuffer.getBounds() );
-	gl::clear();
+	if(mFrameBuffer)
+	{
+		mFrameBuffer.bindFramebuffer();
+		gl::setViewport( mFrameBuffer.getBounds() );
 
-	if(mFrameBuffer.getFormat().hasDepthBuffer()) 
+		if(mFrameBuffer.getFormat().hasDepthBuffer()) 
+		{
+			gl::enableDepthRead();
+			gl::enableDepthWrite();
+		}
+	}
+	else
 	{
 		gl::enableDepthRead();
 		gl::enableDepthWrite();
 	}
+
+	gl::clear();
 
 	gl::pushMatrices();
 	gl::setMatrices(camera);
@@ -141,7 +159,8 @@ void RenderPass::render(const ci::CameraPersp& camera)
 	}
 	gl::popMatrices();
 
-	mFrameBuffer.unbindFramebuffer();
+	if(mFrameBuffer)
+		mFrameBuffer.unbindFramebuffer();
 
 	glPopAttrib();
 }
@@ -214,6 +233,33 @@ void RenderPass::setFlipped( bool flip )
 	
 	for(int i=0;i<mFormat.getNumColorBuffers();++i)
 		mFrameBuffer.getTexture(i).setFlipped(flip);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+RenderPassWireframeRef RenderPassWireframe::create()
+{
+	return std::make_shared<RenderPassWireframe>(); 
+}
+
+void RenderPassWireframe::resize(int width, int height)
+{
+	// output to current buffer - don't create frame buffer
+}
+
+void RenderPassWireframe::render(const CameraPersp& camera)
+{
+	getShader().bind();
+	getShader().uniform( "uViewportSize", Vec2f( gl::getViewport().getSize() ) );
+	getShader().unbind();
+
+	RenderPass::render(camera);
+}
+
+void RenderPassWireframe::loadShader()
+{
+	RenderPass::loadShader(loadAsset("wireframe_vert.glsl"), loadAsset("wireframe_frag.glsl"), loadAsset("wireframe_geom.glsl"),
+							GL_TRIANGLES, GL_TRIANGLE_STRIP, 3);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -359,5 +405,52 @@ bool RenderPassSSAO::resizeSsaoNoise()
 	delete[] noiseData;
 
 	return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+RenderPassCompositeRef RenderPassComposite::create()
+{
+	return std::make_shared<RenderPassComposite>(); 
+}
+
+void RenderPassComposite::resize(int width, int height)
+{
+	// output to current buffer - don't create frame buffer
+}
+
+void RenderPassComposite::render(const CameraPersp& camera)
+{
+	Area viewport = gl::getViewport();
+
+	float fWidth = 1.0f / viewport.getWidth();
+	float fHeight = 1.0f / viewport.getHeight();
+	Vec2i vOrigin = viewport.getUL();
+
+	Vec4f screenParams = Vec4f( vOrigin.x * fWidth,  1.0f - (vOrigin.y * fHeight), fWidth, -fHeight );
+
+	getShader().bind();
+	getShader().uniform( "uScreenParams", screenParams );
+	getShader().uniform( "bUseDiffuseMap", bUseDiffuseMap );
+	getShader().uniform( "bUseSpecularMap", bUseSpecularMap );
+	getShader().uniform( "bUseNormalMap", bUseNormalMap );
+	getShader().uniform( "bUseEmmisiveMap", bUseEmmisiveMap );
+	getShader().uniform( "bShowNormalMap", bShowNormalMap );
+	getShader().unbind();
+
+	RenderPass::render(camera);
+}
+
+void RenderPassComposite::loadShader()
+{
+	RenderPass::loadShader(loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl"));
+	
+	getShader().bind();
+	getShader().uniform( "uDiffuseMap", 0 );
+	getShader().uniform( "uSpecularMap", 1 );
+	getShader().uniform( "uNormalMap", 2 );
+	getShader().uniform( "uEmmisiveMap", 3 );
+	getShader().uniform( "uSSAOMap", 4 );
+	getShader().unbind();
 }
 

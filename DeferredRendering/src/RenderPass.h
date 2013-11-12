@@ -37,7 +37,7 @@ class RenderPass
 {
 public:
 	enum DownScaleSize { ORIGINAL = 0, HALF, QUARTER, EIGHT };
-
+	
 	RenderPass(void) : 
 		mDownScaleSize(ORIGINAL) {}
 	RenderPass( const ci::gl::Fbo::Format& format ) : 
@@ -45,15 +45,15 @@ public:
 		mFormat(format) {}
 	virtual ~RenderPass(void) {}
 
-	static RenderPassRef	create(const ci::gl::Fbo::Format& format);
-
 	void					clear( const ci::ColorA& color = ci::Color::black() );
 
-	virtual void			resize(int width, int height);
+	virtual void			resize(int width, int height) = 0;
 	//! Renders a 3D pass.
-	virtual void			render(const ci::CameraPersp& camera);
+	virtual void			render(const ci::CameraPersp& camera) = 0;
 	//! Renders a full screen pass.
-	virtual void			render();
+	virtual void			render() = 0;
+
+	virtual void			loadShader() = 0;
 
 	void					attachTexture(uint32_t slot, ci::gl::Texture& texture);
 	void					detachTexture(uint32_t slot);
@@ -92,13 +92,34 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+typedef std::shared_ptr<class RenderPassWireframe> RenderPassWireframeRef;
+
+class RenderPassWireframe : public RenderPass
+{
+public:
+	RenderPassWireframe(void) : 
+		RenderPass() {}
+	RenderPassWireframe( const ci::gl::Fbo::Format& format ) : 
+		RenderPass(format) { assert(false); /* not supported */ }
+
+	static RenderPassWireframeRef create();
+
+	void resize(int width, int height);
+	void render(const ci::CameraPersp& camera);
+	void render() { assert(false); /* not supported */ }
+
+	void loadShader();
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
 typedef std::shared_ptr<class RenderPassNormalDepth> RenderPassNormalDepthRef;
 
 class RenderPassNormalDepth : public RenderPass
 {
 public:
 	RenderPassNormalDepth(void) : 
-		RenderPass() {}
+		RenderPass() { assert(false); /* not supported */ }
 	RenderPassNormalDepth( const ci::gl::Fbo::Format& format ) : 
 		RenderPass(format) {}
 
@@ -106,7 +127,7 @@ public:
 
 	void resize(int width, int height);
 	void render(const ci::CameraPersp& camera);
-	void render() { /* not supported */ }
+	void render() { assert(false); /* not supported */ }
 
 	void loadShader();
 };
@@ -119,7 +140,7 @@ class RenderPassSSAO : public RenderPass
 {
 public:
 	RenderPassSSAO(void) : 
-		RenderPass() {}
+		RenderPass() { assert(false); /* not supported */ }
 	RenderPassSSAO( const ci::gl::Fbo::Format& format ) : 
 		RenderPass(format) {}	
 
@@ -127,7 +148,7 @@ public:
 
 	void resize(int width, int height);
 	void render(const ci::CameraPersp& camera);
-	void render() { /* not supported */ }
+	void render() { assert(false); /* not supported */ }
 
 	void loadShader();
 
@@ -140,6 +161,39 @@ public:
 	static const int	kSsaoKernelSize = 16;
 	
 	ci::gl::TextureRef	mTextureNoise;
+};
 
+/////////////////////////////////////////////////////////////////////////////////////
+
+typedef std::shared_ptr<class RenderPassComposite> RenderPassCompositeRef;
+
+class RenderPassComposite : public RenderPass
+{
+public:
+	RenderPassComposite(void) : 
+		RenderPass(),
+		bUseDiffuseMap(true),
+		bUseSpecularMap(true),
+		bUseNormalMap(true),
+		bUseEmmisiveMap(true),
+		bShowNormalMap(false)
+	{}
+	RenderPassComposite( const ci::gl::Fbo::Format& format ) : 
+		RenderPass(format) { assert(false); /* not supported */ }
+
+	static RenderPassCompositeRef create();
+
+	void resize(int width, int height);
+	void render(const ci::CameraPersp& camera);
+	void render() { assert(false); /* not supported */ }
+
+	void loadShader();
+
+public:
+	bool bUseDiffuseMap;
+	bool bUseSpecularMap;
+	bool bUseNormalMap;
+	bool bUseEmmisiveMap;
+	bool bShowNormalMap;
 };
 

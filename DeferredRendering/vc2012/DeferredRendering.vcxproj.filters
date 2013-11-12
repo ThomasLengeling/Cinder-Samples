@@ -69,5 +69,14 @@
     <None Include="..\assets\ssao_frag.glsl">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="..\assets\wireframe_frag.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\wireframe_geom.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\wireframe_vert.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -123,6 +123,9 @@
     <None Include="..\assets\normal_mapping_vert.glsl" />
     <None Include="..\assets\ssao_frag.glsl" />
     <None Include="..\assets\ssao_vert.glsl" />
+    <None Include="..\assets\wireframe_frag.glsl" />
+    <None Include="..\assets\wireframe_geom.glsl" />
+    <None Include="..\assets\wireframe_vert.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

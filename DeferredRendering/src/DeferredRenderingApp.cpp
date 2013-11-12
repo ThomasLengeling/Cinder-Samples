@@ -63,7 +63,7 @@ public:
 
 	void	keyDown( KeyEvent event );
 
-	bool	isInitialized() const { return (mShaderLighting && mLightLantern && mLightAmbient && mMesh && mCopyrightMap); }
+	bool	isInitialized() const { return (mLightLantern && mLightAmbient && mMesh && mCopyrightMap); }
 
 private:
 	TriMesh			createMesh(const fs::path& mshFile, const fs::path& objFile);
@@ -77,9 +77,6 @@ private:
 	gl::Light*			mLightAmbient;
 
 	gl::TextureRef		mCopyrightMap;
-
-	gl::GlslProg		mShaderLighting;
-	gl::GlslProg		mShaderWireframe;
 
 	MeshRef				mMesh;
 
@@ -105,33 +102,66 @@ private:
 
 	params::InterfaceGlRef		mParams;
 
-	RenderPassNormalDepthRef	mNormalAndDepthPass;
-	RenderPassSSAORef			mSSAOPass;
+	RenderPassWireframeRef		mPassWireframe;
+	RenderPassNormalDepthRef	mPassNormalDepth;
+	RenderPassSSAORef			mPassSSAO;
+	RenderPassCompositeRef		mPassComposite;
 };
 
 void DeferredRenderingApp::prepareSettings(Settings* settings)
 {
 	settings->setWindowSize( 1024, 768 );
-	settings->setTitle( "Normal Mapping Demo" );
+	settings->setTitle( "Render Effects Demo" );
 	settings->setFrameRate( 200.0f );
 }
 
 void DeferredRenderingApp::setup()
 {	
+	// load mesh file
+	try {
+		fs::path mshFile = getAssetPath("") / "leprechaun.msh";
+		mMesh = Mesh::create(mshFile);
+		mMesh->setDiffuseMap( loadImage( loadAsset("leprechaun_diffuse.png") ) );
+		mMesh->setSpecularMap( loadImage( loadAsset("leprechaun_specular.png") ) );
+		mMesh->setNormalMap( loadImage( loadAsset("leprechaun_normal.png") ) );
+		mMesh->setEmmisiveMap( loadImage( loadAsset("leprechaun_emmisive.png") ) );
+	}
+	catch( const std::exception& e ) {
+		console() << "Error loading mesh: " << e.what() << std::endl;
+	}
+
+	// setup render passes
+	mPassWireframe = RenderPassWireframe::create();
+	mPassWireframe->loadShader();
+	mPassWireframe->addMesh( mMesh );
+
+	mPassNormalDepth = RenderPassNormalDepth::create();
+	mPassNormalDepth->loadShader();
+	mPassNormalDepth->addMesh( mMesh );
+
+	mPassSSAO = RenderPassSSAO::create();
+	//mPassSSAO->setDownScaleSize( RenderPass::HALF );
+	mPassSSAO->loadShader();
+
+	mPassComposite = RenderPassComposite::create();
+	mPassComposite->loadShader();
+	mPassComposite->addMesh( mMesh );
+
 	// create a parameter window, so we can toggle stuff
-	mParams = params::InterfaceGl::create( getWindow(), "Normal Mapping Demo", Vec2i(320, 240) );
+	mParams = params::InterfaceGl::create( getWindow(), "Demo", Vec2i(320, 240) );
 	mParams->addParam( "Auto Rotate Model", &bAutoRotate );
 	mParams->addParam( "Animate Light", &bAnimateLantern );
 	mParams->addSeparator();
-	mParams->addParam( "Show Normal Map", &bShowNormalMap );
+	mParams->addParam( "Show Normal Map", &mPassComposite->bShowNormalMap );
 	mParams->addParam( "Show Normals & Tangents", &bShowNormalsAndTangents );
 	mParams->addParam( "Show Wireframe", &bShowWireframe );
 	mParams->addSeparator();
 	mParams->addParam( "Enable Ambient Occlusion", &bEnableSSAO );
-	mParams->addParam( "Enable Diffuse Map", &bEnableDiffuseMap );
-	mParams->addParam( "Enable Specular Map", &bEnableSpecularMap );
-	mParams->addParam( "Enable Normal Map", &bEnableNormalMap );
-	mParams->addParam( "Enable Emmisive Map", &bEnableEmmisiveMap );
+	mParams->addParam( "Enable Diffuse Map", &mPassComposite->bUseDiffuseMap );
+	mParams->addParam( "Enable Specular Map", &mPassComposite->bUseSpecularMap );
+	mParams->addParam( "Enable Normal Map", &mPassComposite->bUseNormalMap );
+	mParams->addParam( "Enable Emmisive Map", &mPassComposite->bUseEmmisiveMap );
+	mParams->setOptions( "", "valueswidth=fit" );
 
 	// setup camera and lights
 	mCamera.setEyePoint( Vec3f( 0.2f, 0.4f, 1.8f ) );
@@ -155,15 +185,8 @@ void DeferredRenderingApp::setup()
 	bAutoRotate = true;
 	fAutoRotateAngle = 0.0f;
 
-	bEnableDiffuseMap = true;
-	bEnableSpecularMap = true;
-	bEnableNormalMap = true;
-	bEnableEmmisiveMap= true;
-
 	bEnableSSAO = true;
-
 	bShowNormalsAndTangents = false;
-	bShowNormalMap = false;
 	bShowWireframe = false;
 
 	// load texture(s)
@@ -173,38 +196,6 @@ void DeferredRenderingApp::setup()
 	catch( const std::exception& e ) {
 		console() << "Error loading asset: " << e.what() << std::endl;
 	}
-
-	// load shaders
-	try {
-		mShaderLighting = gl::GlslProg( loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl") );
-		mShaderWireframe = gl::GlslProg( loadAsset("wireframe_vert.glsl"), loadAsset("wireframe_frag.glsl"), loadAsset("wireframe_geom.glsl"),
-			GL_TRIANGLES, GL_TRIANGLE_STRIP, 3 );
-	}
-	catch( const std::exception& e ) {
-		console() << "Error loading asset: " << e.what() << std::endl;
-	}
-
-	// load mesh file
-	try {
-		fs::path mshFile = getAssetPath("") / "leprechaun.msh";
-		mMesh = Mesh::create(mshFile);
-		mMesh->setDiffuseMap( loadImage( loadAsset("leprechaun_diffuse.png") ) );
-		mMesh->setSpecularMap( loadImage( loadAsset("leprechaun_specular.png") ) );
-		mMesh->setNormalMap( loadImage( loadAsset("leprechaun_normal.png") ) );
-		mMesh->setEmmisiveMap( loadImage( loadAsset("leprechaun_emmisive.png") ) );
-	}
-	catch( const std::exception& e ) {
-		console() << "Error loading mesh: " << e.what() << std::endl;
-	}
-
-	// setup render passes
-	mNormalAndDepthPass = RenderPassNormalDepth::create();
-	mNormalAndDepthPass->loadShader();
-	mNormalAndDepthPass->addMesh( mMesh );
-
-	mSSAOPass = RenderPassSSAO::create();
-	//mSSAOPass->setDownScaleSize( RenderPass::HALF );
-	mSSAOPass->loadShader();
 
 	// animate copyright message
 	timeline().apply( &fOpacity, 0.0f, 0.0f, 2.0f );
@@ -237,6 +228,9 @@ void DeferredRenderingApp::update()
 		mMesh->setOrientation( Vec3f::yAxis() * fAutoRotateAngle );
 		mMesh->setScale( mMesh->getUnitScale() );
 	}
+
+	if(mMesh)
+		mMesh->enableDebugging(bShowNormalsAndTangents);
 }
 
 void DeferredRenderingApp::draw()
@@ -246,68 +240,27 @@ void DeferredRenderingApp::draw()
 
 	if(isInitialized())
 	{
-		// perform pre-render passes
-
-		if(bEnableSSAO)
-		{
-			mNormalAndDepthPass->render( mCamera );
-			mSSAOPass->render( mCamera );
-		}
-		else
-			mSSAOPass->clear( Color::white() );
-
-		// get ready to draw in 3D
-		gl::pushMatrices();
-		gl::setMatrices( mCamera );
-
-		gl::enableDepthRead();
-		gl::enableDepthWrite();
-
 		if(bShowWireframe)
 		{
-			// bind our single pass wireframe shader
-			mShaderWireframe.bind();
-			mShaderWireframe.uniform( "uViewportSize", Vec2f( getWindowSize() * 2 ) );
-
-			// render our model
-			mMesh->enableDebugging( bShowNormalsAndTangents );
-			mMesh->render(false);
-
-			// disable our shader
-			mShaderWireframe.unbind();
+			mPassWireframe->render(mCamera);
 		}
 		else
-		{			
-			mSSAOPass->getTexture(0).bind(4);
-
-			// bind our normal mapping shader
-			mShaderLighting.bind();
-			mShaderLighting.uniform( "uDiffuseMap", 0 );
-			mShaderLighting.uniform( "uSpecularMap", 1 );
-			mShaderLighting.uniform( "uNormalMap", 2 );
-			mShaderLighting.uniform( "uEmmisiveMap", 3 );
-			mShaderLighting.uniform( "uSSAOMap", 4 );
-			mShaderLighting.uniform( "bShowNormalMap", bShowNormalMap );
-			mShaderLighting.uniform( "bUseDiffuseMap", bEnableDiffuseMap );
-			mShaderLighting.uniform( "bUseSpecularMap", bEnableSpecularMap );
-			mShaderLighting.uniform( "bUseNormalMap", bEnableNormalMap );
-			mShaderLighting.uniform( "bUseEmmisiveMap", bEnableEmmisiveMap );
-
-			{	
-				Area viewport = gl::getViewport();
-
-				float fWidth = 1.0f / viewport.getWidth();
-				float fHeight = 1.0f / viewport.getHeight();
-				Vec2i vOrigin = viewport.getUL();
-
-				Vec4f screenParams = Vec4f( vOrigin.x * fWidth,  1.0f - (vOrigin.y * fHeight), fWidth, -fHeight );
-
-				mShaderLighting.uniform( "uScreenParams", screenParams );
+		{		
+			// perform pre-render passes
+			if(bEnableSSAO)
+			{
+				mPassNormalDepth->render( mCamera );
+				mPassSSAO->render( mCamera );
 			}
+			else
+				mPassSSAO->clear( Color::white() );
 
-			// enable our lights
+			// enable our lights and set their position
+			//  (note: the camera must be enabled before calling "lookAt", otherwise the positions are not transformed correctly)
 			mLightLantern->enable();
 			mLightAmbient->enable();
+
+			gl::pushModelView(mCamera);
 
 			Vec3f offset = bAnimateLantern ? mPerlin.dfBm( Vec3f( 0.0f, 0.0f, fTime ) ) * 5.0f : Vec3f::zero();
 			Vec3f lanternPositionOS = Vec3f(12.5f, 30.0f, 12.5f) + offset;
@@ -315,24 +268,16 @@ void DeferredRenderingApp::draw()
 			mLightLantern->lookAt( lanternPositionWS, Vec3f(0.0f, 0.5f, 0.0f) );
 		
 			mLightAmbient->lookAt( mCamera.getEyePoint(), mCamera.getCenterOfInterestPoint() );
+
+			gl::popModelView();
 	
-			// render our model
-			mMesh->enableDebugging( bShowNormalsAndTangents );
-			mMesh->render();
+			// perform composite pass
+			mPassComposite->render(mCamera);
 
 			// disable our lights
 			mLightAmbient->disable();
 			mLightLantern->disable();
-
-			// disable our shader
-			mShaderLighting.unbind();
 		}
-
-		// get ready to render in 2D again
-		gl::disableDepthWrite();
-		gl::disableDepthRead();
-
-		gl::popMatrices();
 
 		// render our parameter window
 		if(mParams)
@@ -347,13 +292,13 @@ void DeferredRenderingApp::draw()
 		gl::draw( mCopyrightMap, mCopyrightMap->getBounds(), centered );
 		gl::disableAlphaBlending();
 //*/
-/*
+
 		int w = getWindowWidth();
 		int h = getWindowHeight();
 
 		gl::color( Color::white() );
-		gl::draw( mNormalAndDepthPass->getTexture(0), Area(0, 0, w/2, h/2) );
-		gl::draw( mSSAOPass->getTexture(0), Area(w/2, 0, w, h/2) );
+		gl::draw( mPassNormalDepth->getTexture(0), Area(w*6/8, 0, w*7/8, h*1/8) );
+		gl::draw( mPassSSAO->getTexture(0), Area(w*7/8, 0, w, h*1/8) );
 //*/
 	}
 }
@@ -365,11 +310,13 @@ void DeferredRenderingApp::resize()
 	int w = getWindowWidth();
 	int h = getWindowHeight();
 
-	mNormalAndDepthPass->resize( w, h );
-	mSSAOPass->resize( w, h );
+	mPassNormalDepth->resize( w, h );
+	mPassSSAO->resize( w, h );
 	
-	mSSAOPass->attachTexture(0, mNormalAndDepthPass->getTexture(0));
-	mSSAOPass->attachTexture(1, mNormalAndDepthPass->getDepthTexture());
+	mPassSSAO->attachTexture(0, mPassNormalDepth->getTexture(0));
+	mPassSSAO->attachTexture(1, mPassNormalDepth->getDepthTexture());
+	
+	mPassComposite->attachTexture(4, mPassSSAO->getTexture(0));
 }
 
 void DeferredRenderingApp::mouseDown( MouseEvent event )
