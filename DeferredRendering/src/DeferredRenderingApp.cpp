@@ -2,6 +2,10 @@
  Copyright (c) 2013, Paul Houx - All rights reserved.
  This code is intended for use with the Cinder C++ library: http://libcinder.org
 
+ Leprechaun 3D model courtesy of Fabiano Di Liso aka Nazedo
+ (c) Fabiano Di Liso - All rights reserved - Used with permission.
+ http://www.cgtrader.com/3d-models/character-people/fantasy/the-leprechaun-the-goblin
+
  Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  the following conditions are met:
 
@@ -32,6 +36,7 @@
 #include "cinder/MayaCamUI.h"
 #include "cinder/ObjLoader.h"
 #include "cinder/Perlin.h"
+#include "cinder/Timeline.h"
 #include "cinder/Timer.h"
 #include "cinder/TriMesh.h"
 
@@ -58,10 +63,9 @@ public:
 
 	void	keyDown( KeyEvent event );
 
-	bool	isInitialized() const { return (mShaderLighting && mLightLantern && mLightAmbient && mMesh); }
+	bool	isInitialized() const { return (mShaderLighting && mLightLantern && mLightAmbient && mMesh && mCopyrightMap); }
 
 private:
-	void			delayedSetup();
 	TriMesh			createMesh(const fs::path& mshFile, const fs::path& objFile);
 	gl::VboMeshRef	createDebugMesh(const TriMesh& mesh);
 
@@ -72,15 +76,12 @@ private:
 	gl::Light*			mLightLantern;
 	gl::Light*			mLightAmbient;
 
-	gl::TextureRef		mLoadingMap;
+	gl::TextureRef		mCopyrightMap;
 
 	gl::GlslProg		mShaderLighting;
 	gl::GlslProg		mShaderWireframe;
 
 	MeshRef				mMesh;
-
-	RenderPassRef		mNormalAndDepthPass;
-	RenderPassRef		mSSAOPass;
 
 	bool				bAutoRotate;
 	float				fAutoRotateAngle;
@@ -93,13 +94,19 @@ private:
 	bool				bEnableNormalMap;
 	bool				bEnableEmmisiveMap;
 
+	bool				bEnableSSAO;
+
 	bool				bShowNormalsAndTangents;
 	bool				bShowNormalMap;
 	bool				bShowWireframe;
 
 	float				fTime;
+	Anim<float>			fOpacity;
 
-	params::InterfaceGlRef	mParams;
+	params::InterfaceGlRef		mParams;
+
+	RenderPassNormalDepthRef	mNormalAndDepthPass;
+	RenderPassSSAORef			mSSAOPass;
 };
 
 void DeferredRenderingApp::prepareSettings(Settings* settings)
@@ -111,9 +118,6 @@ void DeferredRenderingApp::prepareSettings(Settings* settings)
 
 void DeferredRenderingApp::setup()
 {	
-	// load our "loading" message
-	mLoadingMap  = gl::Texture::create( loadImage( loadAsset("loading.png") ) );
-
 	// create a parameter window, so we can toggle stuff
 	mParams = params::InterfaceGl::create( getWindow(), "Normal Mapping Demo", Vec2i(320, 240) );
 	mParams->addParam( "Auto Rotate Model", &bAutoRotate );
@@ -123,6 +127,7 @@ void DeferredRenderingApp::setup()
 	mParams->addParam( "Show Normals & Tangents", &bShowNormalsAndTangents );
 	mParams->addParam( "Show Wireframe", &bShowWireframe );
 	mParams->addSeparator();
+	mParams->addParam( "Enable Ambient Occlusion", &bEnableSSAO );
 	mParams->addParam( "Enable Diffuse Map", &bEnableDiffuseMap );
 	mParams->addParam( "Enable Specular Map", &bEnableSpecularMap );
 	mParams->addParam( "Enable Normal Map", &bEnableNormalMap );
@@ -146,19 +151,6 @@ void DeferredRenderingApp::setup()
 
 	mPerlin = Perlin(4, 65535);
 
-	// setup render passes
-	gl::Fbo::Format fmt;
-	fmt.setSamples(0);
-
-	fmt.setColorInternalFormat( GL_RG16F );
-	fmt.enableDepthBuffer(true, true);
-	mNormalAndDepthPass = RenderPass::create( fmt );
-	
-	fmt.setColorInternalFormat( GL_R16F );
-	fmt.enableDepthBuffer(false);
-	mSSAOPass = RenderPass::create( fmt );
-	mSSAOPass->setDownScaleSize( RenderPass::HALF );
-
 	// default settings
 	bAutoRotate = true;
 	fAutoRotateAngle = 0.0f;
@@ -168,17 +160,19 @@ void DeferredRenderingApp::setup()
 	bEnableNormalMap = true;
 	bEnableEmmisiveMap= true;
 
+	bEnableSSAO = true;
+
 	bShowNormalsAndTangents = false;
 	bShowNormalMap = false;
 	bShowWireframe = false;
 
-	// keep track of time
-	fTime = (float) getElapsedSeconds();
-}
-
-void DeferredRenderingApp::delayedSetup()
-{
-	if( isInitialized() ) return;
+	// load texture(s)
+	try {		
+		mCopyrightMap  = gl::Texture::create( loadImage( loadAsset("copyright.png") ) );
+	}
+	catch( const std::exception& e ) {
+		console() << "Error loading asset: " << e.what() << std::endl;
+	}
 
 	// load shaders
 	try {
@@ -203,15 +197,23 @@ void DeferredRenderingApp::delayedSetup()
 		console() << "Error loading mesh: " << e.what() << std::endl;
 	}
 
-	// setup passes
-	mNormalAndDepthPass->loadShader( loadAsset("normals_depth_vert.glsl"), loadAsset("normals_depth_frag.glsl") );
-	mNormalAndDepthPass->getShader().bind();
-	mNormalAndDepthPass->getShader().uniform( "uNormalMap", 2 );
-	mNormalAndDepthPass->getShader().uniform( "uHasNormalMap", true );
-	mNormalAndDepthPass->getShader().unbind();
+	// setup render passes
+	mNormalAndDepthPass = RenderPassNormalDepth::create();
+	mNormalAndDepthPass->loadShader();
 	mNormalAndDepthPass->addMesh( mMesh );
 
-	mSSAOPass->loadShader( loadAsset("ssao_vert.glsl"), loadAsset("ssao_frag.glsl") );
+	mSSAOPass = RenderPassSSAO::create();
+	//mSSAOPass->setDownScaleSize( RenderPass::HALF );
+	mSSAOPass->loadShader();
+
+	// animate copyright message
+	timeline().apply( &fOpacity, 0.0f, 0.0f, 2.0f );
+	timeline().appendTo( &fOpacity, 1.0f, 2.5f, EaseInOutCubic() );
+	timeline().appendTo( &fOpacity, 1.0f, 30.0f );
+	timeline().appendTo( &fOpacity, 0.0f, 2.5f, EaseInOutCubic() );
+
+	// keep track of time
+	fTime = (float) getElapsedSeconds();
 }
 
 void DeferredRenderingApp::shutdown()
@@ -228,15 +230,6 @@ void DeferredRenderingApp::update()
 	float fElapsed = (float) getElapsedSeconds() - fTime;
 	fTime += fElapsed;
 	
-	// because loading the model and shaders might take a while,
-	// we make sure our window is visible and cleared before calling 'delayedSetup()'
-	if( !isInitialized() && getElapsedFrames() > 5 ) {
-		delayedSetup();
-
-		// reset time after everything is setup
-		fTime = (float) getElapsedSeconds();
-	}
-	
 	// rotate the mesh
 	if(bAutoRotate && mMesh) {
 		fAutoRotateAngle += (fElapsed * 0.2f);
@@ -248,21 +241,20 @@ void DeferredRenderingApp::update()
 
 void DeferredRenderingApp::draw()
 {
-	gl::clear( Color(0.01f, 0.03f, 0.05f) ); 
+	gl::clear( Color::black() ); 
 	gl::color( Color::white() );
 
-	if(!isInitialized())
+	if(isInitialized())
 	{
-		// render our loading message while loading is in progress
-		Area centered = Area::proportionalFit( mLoadingMap->getBounds(), getWindowBounds(), true, false );
+		// perform pre-render passes
 
-		gl::enableAlphaBlending();
-		gl::draw( mLoadingMap, mLoadingMap->getBounds(), centered );
-		gl::disableAlphaBlending();
-	}
-	else
-	{
-		mNormalAndDepthPass->render( mCamera );
+		if(bEnableSSAO)
+		{
+			mNormalAndDepthPass->render( mCamera );
+			mSSAOPass->render( mCamera );
+		}
+		else
+			mSSAOPass->clear( Color::white() );
 
 		// get ready to draw in 3D
 		gl::pushMatrices();
@@ -286,17 +278,32 @@ void DeferredRenderingApp::draw()
 		}
 		else
 		{			
+			mSSAOPass->getTexture(0).bind(4);
+
 			// bind our normal mapping shader
 			mShaderLighting.bind();
 			mShaderLighting.uniform( "uDiffuseMap", 0 );
 			mShaderLighting.uniform( "uSpecularMap", 1 );
 			mShaderLighting.uniform( "uNormalMap", 2 );
 			mShaderLighting.uniform( "uEmmisiveMap", 3 );
+			mShaderLighting.uniform( "uSSAOMap", 4 );
 			mShaderLighting.uniform( "bShowNormalMap", bShowNormalMap );
 			mShaderLighting.uniform( "bUseDiffuseMap", bEnableDiffuseMap );
 			mShaderLighting.uniform( "bUseSpecularMap", bEnableSpecularMap );
 			mShaderLighting.uniform( "bUseNormalMap", bEnableNormalMap );
 			mShaderLighting.uniform( "bUseEmmisiveMap", bEnableEmmisiveMap );
+
+			{	
+				Area viewport = gl::getViewport();
+
+				float fWidth = 1.0f / viewport.getWidth();
+				float fHeight = 1.0f / viewport.getHeight();
+				Vec2i vOrigin = viewport.getUL();
+
+				Vec4f screenParams = Vec4f( vOrigin.x * fWidth,  1.0f - (vOrigin.y * fHeight), fWidth, -fHeight );
+
+				mShaderLighting.uniform( "uScreenParams", screenParams );
+			}
 
 			// enable our lights
 			mLightLantern->enable();
@@ -330,14 +337,39 @@ void DeferredRenderingApp::draw()
 		// render our parameter window
 		if(mParams)
 			mParams->draw();
+
+		// render the copyright message
+		Area centered = Area::proportionalFit( mCopyrightMap->getBounds(), getWindowBounds(), true, false );
+		centered.offset( Vec2i(0, (getWindowHeight() - centered.y2) - 20) );
+
+		gl::enableAlphaBlending();
+		gl::color( ColorA(1, 1, 1, fOpacity.value()) );
+		gl::draw( mCopyrightMap, mCopyrightMap->getBounds(), centered );
+		gl::disableAlphaBlending();
+//*/
+/*
+		int w = getWindowWidth();
+		int h = getWindowHeight();
+
+		gl::color( Color::white() );
+		gl::draw( mNormalAndDepthPass->getTexture(0), Area(0, 0, w/2, h/2) );
+		gl::draw( mSSAOPass->getTexture(0), Area(w/2, 0, w, h/2) );
+//*/
 	}
 }
 
 void DeferredRenderingApp::resize()
 {
 	mCamera.setAspectRatio( getWindowAspectRatio() );
-	mNormalAndDepthPass->resize( getWindowWidth(), getWindowHeight() );
-	mSSAOPass->resize( getWindowWidth(), getWindowHeight() );
+
+	int w = getWindowWidth();
+	int h = getWindowHeight();
+
+	mNormalAndDepthPass->resize( w, h );
+	mSSAOPass->resize( w, h );
+	
+	mSSAOPass->attachTexture(0, mNormalAndDepthPass->getTexture(0));
+	mSSAOPass->attachTexture(1, mNormalAndDepthPass->getDepthTexture());
 }
 
 void DeferredRenderingApp::mouseDown( MouseEvent event )

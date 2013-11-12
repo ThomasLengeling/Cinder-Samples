@@ -29,6 +29,8 @@
 
 #include "Mesh.h"
 
+/////////////////////////////////////////////////////////////////////////////////////
+
 typedef std::shared_ptr<class RenderPass> RenderPassRef;
 
 class RenderPass
@@ -41,34 +43,44 @@ public:
 	RenderPass( const ci::gl::Fbo::Format& format ) : 
 		mDownScaleSize(ORIGINAL),
 		mFormat(format) {}
-	~RenderPass(void);
+	virtual ~RenderPass(void) {}
 
-	static RenderPassRef	create( const ci::gl::Fbo::Format& format );
+	static RenderPassRef	create(const ci::gl::Fbo::Format& format);
 
-	void	resize(int width, int height);
-	void	render(const ci::CameraPersp& camera);
-	void	render();
+	void					clear( const ci::ColorA& color = ci::Color::black() );
 
-	void	attachTexture(int slot, ci::gl::TextureRef texture);
-	void	detachTexture(int slot);
+	virtual void			resize(int width, int height);
+	//! Renders a 3D pass.
+	virtual void			render(const ci::CameraPersp& camera);
+	//! Renders a full screen pass.
+	virtual void			render();
 
-	void	addMesh(MeshRef mesh);
-	void	removeMesh(MeshRef mesh);
+	void					attachTexture(uint32_t slot, ci::gl::Texture& texture);
+	void					detachTexture(uint32_t slot);
 
-	void	loadShader(const ci::DataSourceRef vertex, const ci::DataSourceRef fragment);
-	void	loadShader(const ci::DataSourceRef vertex,  const ci::DataSourceRef geometry, const ci::DataSourceRef fragment);
-	void	setShaderCallback() {} // TODO: will call supplied function with shader as param to set uniforms
-	void	resetShaderCallback() {}
+	void					addMesh(MeshRef mesh);
+	void					removeMesh(MeshRef mesh);
 
-	ci::gl::GlslProg	getShader() { return mInputShader; }
+	const ci::gl::Fbo::Format&	getFormat() const { return mFormat; }
 
-	ci::gl::Texture		getTexture(int slot);
-	ci::gl::Texture		getDepthTexture();
+	ci::gl::Texture&		getTexture(uint32_t slot);
+	ci::gl::Texture&		getDepthTexture();
 
-	void	setDownScaleSize(DownScaleSize size) { mDownScaleSize = size; }
+	void					setFlipped( bool flip = true );
+
+	void					setDownScaleSize(DownScaleSize size) { mDownScaleSize = size; }
+
+protected:
+	ci::gl::Fbo&			getFrameBuffer() { return mFrameBuffer; }
+
+	virtual void			loadShader(const ci::DataSourceRef vertex, const ci::DataSourceRef fragment);
+	virtual void			loadShader(const ci::DataSourceRef vertex, const ci::DataSourceRef fragment, 
+								const ci::DataSourceRef geometry, GLint input = 0, GLint output = 4, GLint vertices = 0);
+
+	ci::gl::GlslProg		getShader() { return mInputShader; }
 
 private:
-	std::vector<ci::gl::TextureRef>	mInputTextures;
+	std::vector<ci::gl::Texture>	mInputTextures;
 	std::vector<MeshRef>			mInputMeshes;
 	ci::gl::GlslProg				mInputShader;
 
@@ -76,5 +88,58 @@ private:
 
 	ci::gl::Fbo::Format				mFormat;
 	ci::gl::Fbo						mFrameBuffer;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+typedef std::shared_ptr<class RenderPassNormalDepth> RenderPassNormalDepthRef;
+
+class RenderPassNormalDepth : public RenderPass
+{
+public:
+	RenderPassNormalDepth(void) : 
+		RenderPass() {}
+	RenderPassNormalDepth( const ci::gl::Fbo::Format& format ) : 
+		RenderPass(format) {}
+
+	static RenderPassNormalDepthRef create();
+
+	void resize(int width, int height);
+	void render(const ci::CameraPersp& camera);
+	void render() { /* not supported */ }
+
+	void loadShader();
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+typedef std::shared_ptr<class RenderPassSSAO> RenderPassSSAORef;
+
+class RenderPassSSAO : public RenderPass
+{
+public:
+	RenderPassSSAO(void) : 
+		RenderPass() {}
+	RenderPassSSAO( const ci::gl::Fbo::Format& format ) : 
+		RenderPass(format) {}	
+
+	static RenderPassSSAORef create();
+
+	void resize(int width, int height);
+	void render(const ci::CameraPersp& camera);
+	void render() { /* not supported */ }
+
+	void loadShader();
+
+private:
+	bool resizeSsaoKernel();
+	bool resizeSsaoNoise();
+
+public:
+	static const int	kSsaoNoiseSize = 2;
+	static const int	kSsaoKernelSize = 16;
+	
+	ci::gl::TextureRef	mTextureNoise;
+
 };
 

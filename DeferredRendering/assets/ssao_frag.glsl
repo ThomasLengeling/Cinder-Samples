@@ -8,7 +8,7 @@ uniform sampler2D	uGBuffer;
 uniform sampler2D	uGBufferDepth;
 uniform vec2		uGBufferSize;
 
-uniform vec4		vProjectionParams;
+uniform vec4		uProjectionParams;
 uniform mat4		mProjectionMatrix;
 
 uniform sampler2D	uNoise;
@@ -26,13 +26,13 @@ vec3 decode (in vec2 enc)
 }
 
 float linearizeDepth(in float depth) {
-	return vProjectionParams.w / (depth - vProjectionParams.z);
+	return uProjectionParams.w / (depth - uProjectionParams.z);
 }
 
 vec3 getViewPositionFromDepth(in float depth, in vec2 ndc)
 {
 	float d = linearizeDepth(depth);
-	return vec3((ndc * d) / vProjectionParams.xy, d);
+	return vec3((ndc * d) / uProjectionParams.xy, d);
 }
 
 float calculateOcclusion(in mat3 mKernel, in vec3 vOrigin, in float fRadius) 
