@@ -45,7 +45,7 @@ void main()
 
 		// calculate diffuse term
 		float	fDiffuse = max(dot(vSurfaceNormal,vToLight), 0.0);
-		fDiffuse = clamp(fDiffuse, 0.1, fAmbient);		// non-standard application of SSAO
+		fDiffuse = clamp(fDiffuse, 0.1, 1.0) * fAmbient;		// non-standard application of SSAO
 
 		// calculate specular term
 		float	fSpecularPower = 100.0;

@@ -105,6 +105,7 @@ private:
 	RenderPassWireframeRef		mPassWireframe;
 	RenderPassNormalDepthRef	mPassNormalDepth;
 	RenderPassSSAORef			mPassSSAO;
+	RenderPassCBFilterRef		mPassCrossBilateralFilter;
 	RenderPassCompositeRef		mPassComposite;
 };
 
@@ -119,12 +120,12 @@ void DeferredRenderingApp::setup()
 {	
 	// load mesh file
 	try {
-		fs::path mshFile = getAssetPath("") / "leprechaun.msh";
+		fs::path mshFile = getAssetPath("") / "mesh/leprechaun.msh";
 		mMesh = Mesh::create(mshFile);
-		mMesh->setDiffuseMap( loadImage( loadAsset("leprechaun_diffuse.png") ) );
-		mMesh->setSpecularMap( loadImage( loadAsset("leprechaun_specular.png") ) );
-		mMesh->setNormalMap( loadImage( loadAsset("leprechaun_normal.png") ) );
-		mMesh->setEmmisiveMap( loadImage( loadAsset("leprechaun_emmisive.png") ) );
+		mMesh->setDiffuseMap( loadImage( loadAsset("texture/leprechaun_diffuse.png") ) );
+		mMesh->setSpecularMap( loadImage( loadAsset("texture/leprechaun_specular.png") ) );
+		mMesh->setNormalMap( loadImage( loadAsset("texture/leprechaun_normal.png") ) );
+		mMesh->setEmmisiveMap( loadImage( loadAsset("texture/leprechaun_emmisive.png") ) );
 	}
 	catch( const std::exception& e ) {
 		console() << "Error loading mesh: " << e.what() << std::endl;
@@ -136,13 +137,17 @@ void DeferredRenderingApp::setup()
 	mPassWireframe->addMesh( mMesh );
 
 	mPassNormalDepth = RenderPassNormalDepth::create();
-	//mPassNormalDepth->setDownScaleSize( RenderPass::HALF );
+	mPassNormalDepth->setDownScaleSize( RenderPass::HALF );
 	mPassNormalDepth->loadShader();
 	mPassNormalDepth->addMesh( mMesh );
 
 	mPassSSAO = RenderPassSSAO::create();
-	//mPassSSAO->setDownScaleSize( RenderPass::HALF );
+	mPassSSAO->setDownScaleSize( RenderPass::HALF );
 	mPassSSAO->loadShader();
+
+	mPassCrossBilateralFilter = RenderPassCBFilter::create();
+	mPassCrossBilateralFilter->setDownScaleSize( RenderPass::HALF );
+	mPassCrossBilateralFilter->loadShader();
 
 	mPassComposite = RenderPassComposite::create();
 	mPassComposite->setClearColor( Color::black() );
@@ -252,9 +257,13 @@ void DeferredRenderingApp::draw()
 			{
 				mPassNormalDepth->render( mCamera );
 				mPassSSAO->render( mCamera );
+				mPassCrossBilateralFilter->render();
 			}
 			else
+			{
 				mPassSSAO->clear();
+				mPassCrossBilateralFilter->clear();
+			}
 
 			// enable our lights and set their position
 			//  (note: the camera must be enabled before calling "lookAt", otherwise the positions are not transformed correctly)
@@ -293,13 +302,17 @@ void DeferredRenderingApp::draw()
 		gl::draw( mCopyrightMap, mCopyrightMap->getBounds(), centered );
 		gl::disableAlphaBlending();
 //*/
-
+		/*
 		int w = getWindowWidth();
 		int h = getWindowHeight();
 
 		gl::color( Color::white() );
-		gl::draw( mPassNormalDepth->getTexture(0), Area(w*6/8, 0, w*7/8, h*1/8) );
-		gl::draw( mPassSSAO->getTexture(0), Area(w*7/8, 0, w, h*1/8) );
+		//gl::draw( mPassNormalDepth->getTexture(0), Area(w*2/4, 0, w*3/4, h*1/4) );
+		//gl::draw( mPassSSAO->getTexture(0), Area(w*3/4, 0, w, h*1/4) );
+		//gl::draw( mPassCrossBilateralFilter->getTexture(0), Area(w*3/4, h*1/4, w, h*2/4) );
+		
+		//gl::draw( mPassSSAO->getTexture(0), Area(0, 0, w/2, h) );
+		gl::draw( mPassCrossBilateralFilter->getTexture(0), Area(0,0,w,h) );
 //*/
 	}
 }
@@ -308,16 +321,21 @@ void DeferredRenderingApp::resize()
 {
 	mCamera.setAspectRatio( getWindowAspectRatio() );
 
+	// create the frame buffers for several render passes
 	int w = getWindowWidth();
 	int h = getWindowHeight();
 
 	mPassNormalDepth->resize( w, h );
 	mPassSSAO->resize( w, h );
+	mPassCrossBilateralFilter->resize( w, h );
 	
+	// attach output textures to render pass inputs
 	mPassSSAO->attachTexture(0, mPassNormalDepth->getTexture(0));
 	mPassSSAO->attachTexture(1, mPassNormalDepth->getDepthTexture());
+
+	mPassCrossBilateralFilter->attachTexture(0, mPassSSAO->getTexture(0));
 	
-	mPassComposite->attachTexture(4, mPassSSAO->getTexture(0));
+	mPassComposite->attachTexture(4, mPassCrossBilateralFilter->getTexture(0));
 }
 
 void DeferredRenderingApp::mouseDown( MouseEvent event )

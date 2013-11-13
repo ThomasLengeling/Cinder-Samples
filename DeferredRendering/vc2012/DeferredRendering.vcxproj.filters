@@ -51,31 +51,37 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\normal_mapping_frag.glsl">
+    <None Include="..\assets\shader\wireframe_vert.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\normal_mapping_vert.glsl">
+    <None Include="..\assets\shader\composite_frag.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\normals_depth_vert.glsl">
+    <None Include="..\assets\shader\composite_vert.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\normals_depth_frag.glsl">
+    <None Include="..\assets\shader\cross_bilateral_filter_frag.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\ssao_vert.glsl">
+    <None Include="..\assets\shader\cross_bilateral_filter_vert.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\ssao_frag.glsl">
+    <None Include="..\assets\shader\normals_depth_frag.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\wireframe_frag.glsl">
+    <None Include="..\assets\shader\normals_depth_vert.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\wireframe_geom.glsl">
+    <None Include="..\assets\shader\ssao_frag.glsl">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\assets\wireframe_vert.glsl">
+    <None Include="..\assets\shader\ssao_vert.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\shader\wireframe_frag.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\assets\shader\wireframe_geom.glsl">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

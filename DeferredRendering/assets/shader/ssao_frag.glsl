@@ -29,10 +29,9 @@ float linearizeDepth(in float depth) {
 	return uProjectionParams.w / (depth - uProjectionParams.z);
 }
 
-vec3 getViewPositionFromDepth(in float depth, in vec2 ndc)
+vec3 getViewPositionFromLinearDepth(in float depth, in vec2 ndc)
 {
-	float d = linearizeDepth(depth);
-	return vec3((ndc * d) / uProjectionParams.xy, d);
+	return vec3((ndc * depth) / uProjectionParams.xy, depth);
 }
 
 float calculateOcclusion(in mat3 mKernel, in vec3 vOrigin, in float fRadius) 
@@ -67,8 +66,9 @@ void main()
 
 	// calculate view space fragment position from depth
 	float	fDepth = texture2D( uGBufferDepth, gl_TexCoord[0].st ).r;
+	float	fLinearDepth = linearizeDepth( fDepth );
 	vec2	vNormalizedCoords = gl_TexCoord[0].st * 2.0 - 1.0;
-	vec3	vPosition = getViewPositionFromDepth( fDepth, vNormalizedCoords );
+	vec3	vPosition = getViewPositionFromLinearDepth( fLinearDepth, vNormalizedCoords );
 	
 	// decode view space surface normal
 	vec2	vEncodedNormal = vNormalAndSpecularPower.rg;
@@ -85,4 +85,5 @@ void main()
 	
 	// perform SSAO and output to buffer
 	gl_FragColor.r = calculateOcclusion(mKernel, vPosition, uRadius);
+	gl_FragColor.g = fDepth;
 }

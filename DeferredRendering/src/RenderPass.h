@@ -38,13 +38,8 @@ class RenderPass
 public:
 	enum DownScaleSize { ORIGINAL = 0, HALF, QUARTER, EIGHT };
 	
-	RenderPass(void) : 
-		mDownScaleSize(ORIGINAL), 
-		mClearColor(ci::Color::black()) {}
-	RenderPass( const ci::gl::Fbo::Format& format ) : 
-		mDownScaleSize(ORIGINAL),
-		mClearColor(ci::Color::black()),
-		mFormat(format) {}
+	RenderPass(void);
+	RenderPass( const ci::gl::Fbo::Format& format );
 	virtual ~RenderPass(void) {}
 
 	void					setClearColor( const ci::ColorA& color ) { mClearColor = color; }
@@ -202,5 +197,27 @@ public:
 	bool bUseNormalMap;
 	bool bUseEmmisiveMap;
 	bool bShowNormalMap;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+typedef std::shared_ptr<class RenderPassCBFilter> RenderPassCBFilterRef;
+
+class RenderPassCBFilter : public RenderPass
+{
+public:
+	RenderPassCBFilter(void) : 
+		RenderPass()
+	{ assert(false); /* not supported */ }
+	RenderPassCBFilter( const ci::gl::Fbo::Format& format ) : 
+		RenderPass(format) { setClearColor(ci::Color::white()); }
+
+	static RenderPassCBFilterRef create();
+
+	void resize(int width, int height);
+	void render(const ci::CameraPersp& camera) { assert(false); /* not supported */ }
+	void render();
+
+	void loadShader();
 };
 

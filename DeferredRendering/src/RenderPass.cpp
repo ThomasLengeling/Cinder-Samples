@@ -27,6 +27,23 @@
 using namespace ci;
 using namespace ci::app;
 
+RenderPass::RenderPass() : 
+	mDownScaleSize(ORIGINAL), 
+	mClearColor(Color::black())
+{
+	mInputTextures.clear();
+	mInputMeshes.clear();
+}
+
+RenderPass::RenderPass( const gl::Fbo::Format& format ) : 
+	mDownScaleSize(ORIGINAL),
+	mClearColor(Color::black()),
+	mFormat(format)
+{
+	mInputTextures.clear();
+	mInputMeshes.clear();
+}
+
 void RenderPass::clear()
 {
 	gl::SaveFramebufferBinding	savedFramebufferBinding;
@@ -46,6 +63,7 @@ void RenderPass::resize(int width, int height)
 	mInputTextures.clear();
 
 	// create the frame buffer
+	mFrameBuffer = gl::Fbo();
 	mFrameBuffer = gl::Fbo( width >> mDownScaleSize, height >> mDownScaleSize, mFormat );
 }
 
@@ -258,7 +276,9 @@ void RenderPassWireframe::render(const CameraPersp& camera)
 
 void RenderPassWireframe::loadShader()
 {
-	RenderPass::loadShader(loadAsset("wireframe_vert.glsl"), loadAsset("wireframe_frag.glsl"), loadAsset("wireframe_geom.glsl"),
+	RenderPass::loadShader(	loadAsset("shader/wireframe_vert.glsl"), 
+							loadAsset("shader/wireframe_frag.glsl"),
+							loadAsset("shader/wireframe_geom.glsl"),
 							GL_TRIANGLES, GL_TRIANGLE_STRIP, 3);
 }
 
@@ -287,7 +307,8 @@ void RenderPassNormalDepth::render(const CameraPersp& camera)
 
 void RenderPassNormalDepth::loadShader()
 {
-	RenderPass::loadShader(loadAsset("normals_depth_vert.glsl"), loadAsset("normals_depth_frag.glsl"));
+	RenderPass::loadShader(	loadAsset("shader/normals_depth_vert.glsl"),
+							loadAsset("shader/normals_depth_frag.glsl"));
 
 	getShader().bind();
 	getShader().uniform( "uNormalMap", 2 );
@@ -299,9 +320,11 @@ void RenderPassNormalDepth::loadShader()
 
 RenderPassSSAORef RenderPassSSAO::create()
 {	
+	// We will write the SSAO to the red channel, and view space Z to the green channel. 
+	// This makes the cross-bilateral filter step more efficient.
 	gl::Fbo::Format fmt;
 	fmt.setSamples(0);
-	fmt.setColorInternalFormat( GL_LUMINANCE16F_ARB );
+	fmt.setColorInternalFormat( GL_RG16F );
 	fmt.enableDepthBuffer(false);
 
 	return std::make_shared<RenderPassSSAO>(fmt); 
@@ -338,7 +361,8 @@ void RenderPassSSAO::render(const CameraPersp& camera)
 
 void RenderPassSSAO::loadShader()
 {	
-	RenderPass::loadShader( loadAsset("ssao_vert.glsl"), loadAsset("ssao_frag.glsl") );
+	RenderPass::loadShader(	loadAsset("shader/ssao_vert.glsl"),
+							loadAsset("shader/ssao_frag.glsl") );
 
 	getShader().bind();
 	getShader().uniform( "uNormalMap", 2 );
@@ -430,7 +454,7 @@ void RenderPassComposite::render(const CameraPersp& camera)
 	float fHeight = 1.0f / viewport.getHeight();
 	Vec2i vOrigin = viewport.getUL();
 
-	Vec4f screenParams = Vec4f( vOrigin.x * fWidth,  1.0f - (vOrigin.y * fHeight), fWidth, -fHeight );
+	Vec4f screenParams = Vec4f( (vOrigin.x * fWidth), (vOrigin.y * fHeight), fWidth, fHeight );
 
 	getShader().bind();
 	getShader().uniform( "uScreenParams", screenParams );
@@ -446,7 +470,8 @@ void RenderPassComposite::render(const CameraPersp& camera)
 
 void RenderPassComposite::loadShader()
 {
-	RenderPass::loadShader(loadAsset("normal_mapping_vert.glsl"), loadAsset("normal_mapping_frag.glsl"));
+	RenderPass::loadShader(	loadAsset("shader/composite_vert.glsl"),
+							loadAsset("shader/composite_frag.glsl"));
 	
 	getShader().bind();
 	getShader().uniform( "uDiffuseMap", 0 );
@@ -454,6 +479,53 @@ void RenderPassComposite::loadShader()
 	getShader().uniform( "uNormalMap", 2 );
 	getShader().uniform( "uEmmisiveMap", 3 );
 	getShader().uniform( "uSSAOMap", 4 );
+	getShader().unbind();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+RenderPassCBFilterRef RenderPassCBFilter::create()
+{
+	// We will write the SSAO to the red channel, and view space Z to the green channel,
+	// just like the SSAO pass.
+	gl::Fbo::Format fmt;
+	fmt.setSamples(0);
+	fmt.setColorInternalFormat( GL_LUMINANCE16F_ARB );
+	fmt.enableDepthBuffer(false);
+
+	return std::make_shared<RenderPassCBFilter>(fmt); 
+}
+
+void RenderPassCBFilter::resize(int width, int height)
+{
+	RenderPass::resize(width, height);
+	setFlipped(true);
+}
+
+void RenderPassCBFilter::render()
+{
+	Area viewport = getFrameBuffer().getBounds();
+
+	float fWidth = 1.0f / viewport.getWidth();
+	float fHeight = 1.0f / viewport.getHeight();
+	Vec2i vOrigin = viewport.getUL();
+
+	Vec4f screenParams = Vec4f( (vOrigin.x * fWidth), (vOrigin.y * fHeight), fWidth, fHeight );
+
+	getShader().bind();
+	getShader().uniform( "uScreenParams", screenParams );
+	getShader().unbind();
+
+	RenderPass::render();
+}
+
+void RenderPassCBFilter::loadShader()
+{
+	RenderPass::loadShader(	loadAsset("shader/cross_bilateral_filter_vert.glsl"),
+							loadAsset("shader/cross_bilateral_filter_frag.glsl"));
+	
+	getShader().bind();
+	getShader().uniform( "uSSAOMap", 0 );
 	getShader().unbind();
 }
 
