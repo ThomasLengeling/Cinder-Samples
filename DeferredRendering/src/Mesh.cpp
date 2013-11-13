@@ -162,21 +162,29 @@ void Mesh::disableDebugging()
 	mIsDebugEnabled = false;
 }
 
-void Mesh::readMesh( const ci::fs::path& mshFile, bool generateNormals, bool generateTangents )
+void Mesh::readMesh( const ci::fs::path& mshFile, bool writeIfChanged )
 {
+	bool hasChanged = false;
+
 	if(fs::exists(mshFile))
 		mTriMesh.read( loadFile(mshFile) );
 
 	// if the mesh does not have normals, calculate them on-the-fly
-	if(generateNormals && !mTriMesh.hasNormals()) {
+	if(!mTriMesh.hasNormals()) {
 		mTriMesh.recalculateNormals();
+		hasChanged = true;
 	}
 
 	// if the mesh does not have tangents, calculate them on-the-fly
 	//  (note: your model needs to have normals and texture coordinates for this to work)
-	if(generateTangents && !mTriMesh.hasTangents()) {
+	if(!mTriMesh.hasTangents()) {
 		mTriMesh.recalculateTangents(); 
+		hasChanged = true;
 	}
+
+	// write file if changed
+	if(writeIfChanged && hasChanged)
+		mTriMesh.write( writeFile(mshFile) );
 
 	// 
 	mBoundingBox = mTriMesh.calcBoundingBox();

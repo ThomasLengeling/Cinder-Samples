@@ -54,7 +54,7 @@ public:
 	void					enableDebugging( bool enable = true );
 	void					disableDebugging();
 
-	void					readMesh( const ci::fs::path& mshFile, bool generateNormals = false, bool generateTangents = false );
+	void					readMesh( const ci::fs::path& mshFile, bool writeIfChanged = false );
 	void					writeMesh( const ci::fs::path& mshFile );
 
 private:
