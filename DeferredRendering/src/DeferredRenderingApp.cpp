@@ -136,6 +136,7 @@ void DeferredRenderingApp::setup()
 	mPassWireframe->addMesh( mMesh );
 
 	mPassNormalDepth = RenderPassNormalDepth::create();
+	//mPassNormalDepth->setDownScaleSize( RenderPass::HALF );
 	mPassNormalDepth->loadShader();
 	mPassNormalDepth->addMesh( mMesh );
 
@@ -144,6 +145,7 @@ void DeferredRenderingApp::setup()
 	mPassSSAO->loadShader();
 
 	mPassComposite = RenderPassComposite::create();
+	mPassComposite->setClearColor( Color::black() );
 	mPassComposite->loadShader();
 	mPassComposite->addMesh( mMesh );
 
@@ -182,7 +184,7 @@ void DeferredRenderingApp::setup()
 	mPerlin = Perlin(4, 65535);
 
 	// default settings
-	bAutoRotate = true;
+	bAutoRotate = false;
 	fAutoRotateAngle = 0.0f;
 
 	bEnableSSAO = true;
@@ -222,15 +224,14 @@ void DeferredRenderingApp::update()
 	fTime += fElapsed;
 	
 	// rotate the mesh
-	if(bAutoRotate && mMesh) {
+	if(bAutoRotate) 
 		fAutoRotateAngle += (fElapsed * 0.2f);
 
+	if(mMesh) {
 		mMesh->setOrientation( Vec3f::yAxis() * fAutoRotateAngle );
 		mMesh->setScale( mMesh->getUnitScale() );
-	}
-
-	if(mMesh)
 		mMesh->enableDebugging(bShowNormalsAndTangents);
+	}
 }
 
 void DeferredRenderingApp::draw()
@@ -253,7 +254,7 @@ void DeferredRenderingApp::draw()
 				mPassSSAO->render( mCamera );
 			}
 			else
-				mPassSSAO->clear( Color::white() );
+				mPassSSAO->clear();
 
 			// enable our lights and set their position
 			//  (note: the camera must be enabled before calling "lookAt", otherwise the positions are not transformed correctly)

@@ -1,8 +1,8 @@
 #version 120
 
-const int			MAX_KERNEL_SIZE = 16;
-const float			uRadius = 0.025;
-const float			uPower = 0.9;
+const int			MAX_KERNEL_SIZE = 256;
+const float			uRadius = 0.25;
+const float			uPower = 1.2;
 
 uniform sampler2D	uGBuffer;
 uniform sampler2D	uGBufferDepth;

@@ -39,14 +39,19 @@ public:
 	enum DownScaleSize { ORIGINAL = 0, HALF, QUARTER, EIGHT };
 	
 	RenderPass(void) : 
-		mDownScaleSize(ORIGINAL) {}
+		mDownScaleSize(ORIGINAL), 
+		mClearColor(ci::Color::black()) {}
 	RenderPass( const ci::gl::Fbo::Format& format ) : 
 		mDownScaleSize(ORIGINAL),
+		mClearColor(ci::Color::black()),
 		mFormat(format) {}
 	virtual ~RenderPass(void) {}
 
-	void					clear( const ci::ColorA& color = ci::Color::black() );
+	void					setClearColor( const ci::ColorA& color ) { mClearColor = color; }
 
+	//!
+	void					clear();
+	//!
 	virtual void			resize(int width, int height) = 0;
 	//! Renders a 3D pass.
 	virtual void			render(const ci::CameraPersp& camera) = 0;
@@ -88,6 +93,8 @@ private:
 
 	ci::gl::Fbo::Format				mFormat;
 	ci::gl::Fbo						mFrameBuffer;
+
+	ci::ColorA						mClearColor;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -141,8 +148,8 @@ class RenderPassSSAO : public RenderPass
 public:
 	RenderPassSSAO(void) : 
 		RenderPass() { assert(false); /* not supported */ }
-	RenderPassSSAO( const ci::gl::Fbo::Format& format ) : 
-		RenderPass(format) {}	
+	RenderPassSSAO( const ci::gl::Fbo::Format& format ) :
+		RenderPass(format) { setClearColor(ci::Color::white()); }
 
 	static RenderPassSSAORef create();
 
@@ -157,8 +164,8 @@ private:
 	bool resizeSsaoNoise();
 
 public:
-	static const int	kSsaoNoiseSize = 2;
-	static const int	kSsaoKernelSize = 16;
+	static const int	kSsaoNoiseSize = 32;	// HQ: 1   / LQ: 32
+	static const int	kSsaoKernelSize = 32;	// HQ: 256 / LQ: 32
 	
 	ci::gl::TextureRef	mTextureNoise;
 };

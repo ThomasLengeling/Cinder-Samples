@@ -27,7 +27,7 @@
 using namespace ci;
 using namespace ci::app;
 
-void RenderPass::clear( const ci::ColorA& color )
+void RenderPass::clear()
 {
 	gl::SaveFramebufferBinding	savedFramebufferBinding;
 
@@ -35,7 +35,7 @@ void RenderPass::clear( const ci::ColorA& color )
 
 	mFrameBuffer.bindFramebuffer();
 	gl::setViewport( mFrameBuffer.getBounds() );
-	gl::clear( color );
+	gl::clear( mClearColor );
 
 	glPopAttrib();
 }
@@ -72,7 +72,7 @@ void RenderPass::render()
 	}
 
 	// clear
-	gl::clear();
+	gl::clear( mClearColor );
 
 	// bind shader
 	if(mInputShader)
@@ -129,7 +129,7 @@ void RenderPass::render(const ci::CameraPersp& camera)
 		gl::enableDepthWrite();
 	}
 
-	gl::clear();
+	gl::clear( mClearColor );
 
 	gl::pushMatrices();
 	gl::setMatrices(camera);
@@ -322,12 +322,15 @@ void RenderPassSSAO::render(const CameraPersp& camera)
 	float zRange = zFar - zNear;
 	Vec4f projectionParams = Vec4f(projection.at(0,0), projection.at(1,1), zFar / zRange, - (zFar * zNear) / zRange);
 
+	mTextureNoise->bind(2);
+
 	getShader().bind();
 	getShader().uniform( "uProjectionParams", projectionParams );
 	getShader().uniform( "mProjectionMatrix", projection );
 	getShader().uniform( "uGBuffer", 0 );
 	getShader().uniform( "uGBufferDepth", 1 );
 	getShader().uniform( "uGBufferSize", Vec2f( getFrameBuffer().getSize() ) );
+	getShader().uniform( "uNoise", 2 );
 	getShader().unbind();
 
 	RenderPass::render();
