@@ -180,10 +180,10 @@ void RenderPass::render(const ci::CameraPersp& camera)
 		for( auto itr=mInputMeshes.begin(); itr != mInputMeshes.end(); ++itr )
 		{
 			// these uniforms are set so you can use them in your shaders
-			getShader().uniform( "uHasDiffuseMap", (*itr)->hasDiffuseMap() );
-			getShader().uniform( "uHasSpecularMap", (*itr)->hasSpecularMap() );
-			getShader().uniform( "uHasNormalMap", (*itr)->hasNormalMap() );
-			getShader().uniform( "uHasEmmisiveMap", (*itr)->hasEmmisiveMap() );
+			getShader().uniform( "uHasDiffuseMap", (*itr)->isDiffuseMapEnabled() );
+			getShader().uniform( "uHasSpecularMap", (*itr)->isSpecularMapEnabled() );
+			getShader().uniform( "uHasNormalMap", (*itr)->isNormalMapEnabled() );
+			getShader().uniform( "uHasEmmisiveMap", (*itr)->isEmmisiveMapEnabled() );
 
 			(*itr)->render();
 		}

@@ -164,10 +164,10 @@ void DeferredRenderingApp::setup()
 	mParams->addParam( "Show Wireframe", &bShowWireframe );
 	mParams->addSeparator();
 	mParams->addParam( "Enable Ambient Occlusion", &bEnableSSAO );
-	mParams->addParam( "Enable Diffuse Map", &mPassComposite->bUseDiffuseMap );
-	mParams->addParam( "Enable Specular Map", &mPassComposite->bUseSpecularMap );
-	mParams->addParam( "Enable Normal Map", &mPassComposite->bUseNormalMap );
-	mParams->addParam( "Enable Emmisive Map", &mPassComposite->bUseEmmisiveMap );
+	mParams->addParam( "Enable Diffuse Map", &mMesh->bUseDiffuseMap );
+	mParams->addParam( "Enable Specular Map", &mMesh->bUseSpecularMap );
+	mParams->addParam( "Enable Normal Map", &mMesh->bUseNormalMap );
+	mParams->addParam( "Enable Emmisive Map", &mMesh->bUseEmmisiveMap );
 	mParams->setOptions( "", "valueswidth=fit" );
 
 	// setup camera and lights

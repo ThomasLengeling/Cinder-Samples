@@ -37,18 +37,24 @@ public:
 
 	const ci::Matrix44f&	getTransform() const;
 
-	bool					hasDiffuseMap() const { return mDiffuseMapRef != ci::gl::TextureRef(); }
+	bool					isDiffuseMapEnabled() const { return mDiffuseMapRef != ci::gl::TextureRef() && bUseDiffuseMap; }
+	void					enableDiffuseMap( bool enable = true ) { bUseDiffuseMap = enable; }
 	ci::gl::TextureRef		getDiffuseMap() { return mDiffuseMapRef; }
-	bool					hasSpecularMap() const { return mSpecularMapRef != ci::gl::TextureRef(); }
-	ci::gl::TextureRef		getSpecularMap() { return mSpecularMapRef; }
-	bool					hasNormalMap() const { return mNormalMapRef != ci::gl::TextureRef(); }
-	ci::gl::TextureRef		getNormalMap() { return mNormalMapRef; }
-	bool					hasEmmisiveMap() const { return mEmmisiveMapRef != ci::gl::TextureRef(); }
-	ci::gl::TextureRef		getEmmisiveMap() { return mEmmisiveMapRef; }
-
 	void					setDiffuseMap(const ci::ImageSourceRef source) { mDiffuseMapRef = ci::gl::Texture::create(source); }
+
+	bool					isSpecularMapEnabled() const { return mSpecularMapRef != ci::gl::TextureRef() && bUseSpecularMap; }
+	void					enableSpecularMap( bool enable = true ) { bUseSpecularMap = enable; }
+	ci::gl::TextureRef		getSpecularMap() { return mSpecularMapRef; }
 	void					setSpecularMap(const ci::ImageSourceRef source) { mSpecularMapRef = ci::gl::Texture::create(source); }
+
+	bool					isNormalMapEnabled() const { return mNormalMapRef != ci::gl::TextureRef() && bUseNormalMap; }
+	void					enableNormalMap( bool enable = true ) { bUseNormalMap = enable; }
+	ci::gl::TextureRef		getNormalMap() { return mNormalMapRef; }
 	void					setNormalMap(const ci::ImageSourceRef source) { mNormalMapRef = ci::gl::Texture::create(source); }
+
+	bool					isEmmisiveMapEnabled() const { return mEmmisiveMapRef != ci::gl::TextureRef() && bUseEmmisiveMap; }
+	void					enableEmmisiveMap( bool enable = true ) { bUseEmmisiveMap = enable; }
+	ci::gl::TextureRef		getEmmisiveMap() { return mEmmisiveMapRef; }
 	void					setEmmisiveMap(const ci::ImageSourceRef source) { mEmmisiveMapRef = ci::gl::Texture::create(source); }
 
 	void					enableDebugging( bool enable = true );
@@ -79,5 +85,11 @@ private:
 	ci::gl::TextureRef		mSpecularMapRef;
 	ci::gl::TextureRef		mNormalMapRef;
 	ci::gl::TextureRef		mEmmisiveMapRef;
+
+public:
+	bool					bUseDiffuseMap;
+	bool					bUseSpecularMap;
+	bool					bUseNormalMap;
+	bool					bUseEmmisiveMap;
 };
 

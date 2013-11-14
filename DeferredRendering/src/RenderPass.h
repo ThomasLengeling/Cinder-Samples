@@ -177,10 +177,6 @@ class RenderPassComposite : public RenderPass
 public:
 	RenderPassComposite(void) : 
 		RenderPass(),
-		bUseDiffuseMap(true),
-		bUseSpecularMap(true),
-		bUseNormalMap(true),
-		bUseEmmisiveMap(true),
 		bShowNormalMap(false)
 	{}
 	RenderPassComposite( const ci::gl::Fbo::Format& format ) : 
@@ -195,10 +191,6 @@ public:
 	void loadShader();
 
 public:
-	bool bUseDiffuseMap;
-	bool bUseSpecularMap;
-	bool bUseNormalMap;
-	bool bUseEmmisiveMap;
 	bool bShowNormalMap;
 };
 

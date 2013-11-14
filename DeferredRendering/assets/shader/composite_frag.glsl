@@ -11,12 +11,12 @@ uniform	sampler2D	uNormalMap;
 uniform	sampler2D	uEmmisiveMap;
 uniform	sampler2D	uSSAOMap;
 
-uniform bool		bShowNormalMap;
+uniform bool		uHasDiffuseMap;
+uniform bool		uHasSpecularMap;
+uniform bool		uHasNormalMap;
+uniform bool		uHasEmmisiveMap;
 
-uniform bool		bUseDiffuseMap;
-uniform bool		bUseSpecularMap;
-uniform bool		bUseNormalMap;
-uniform bool		bUseEmmisiveMap;
+uniform bool		bShowNormalMap;
 
 uniform vec4		uScreenParams;
 
@@ -26,7 +26,7 @@ void main()
 
 	// fetch the normal from the normal map and modify it using the normal (and tangents) from the 3D mesh
 	vec3	vMappedNormal = texture2D(uNormalMap, gl_TexCoord[0].st).rgb * 2.0 - 1.0;
-	vec3	vSurfaceNormal = bUseNormalMap ? normalize((vTangent * vMappedNormal.x) + (vBiTangent * vMappedNormal.y) + (vNormal * vMappedNormal.z)) : vNormal;
+	vec3	vSurfaceNormal = uHasNormalMap ? normalize((vTangent * vMappedNormal.x) + (vBiTangent * vMappedNormal.y) + (vNormal * vMappedNormal.z)) : vNormal;
 		
 	// calculate ambient term
 	vec2	vTexCoord = gl_FragCoord.xy * uScreenParams.zw + uScreenParams.xy;
@@ -34,7 +34,7 @@ void main()
 
 	// apply each of our light sources
 	vec4	vAmbientColor	= vec4(0, 0, 0, 1);
-	vec4	vDiffuseColor	= bUseEmmisiveMap ? texture2D(uEmmisiveMap, gl_TexCoord[0].st) : vec4(0, 0, 0, 1);
+	vec4	vDiffuseColor	= uHasEmmisiveMap ? texture2D(uEmmisiveMap, gl_TexCoord[0].st) : vec4(0, 0, 0, 1);
 	vec4	vSpecularColor	= vec4(0, 0, 0, 1);  
 
 	for(int i=0; i<2; ++i)
@@ -55,12 +55,12 @@ void main()
 		// calculate final colors
 		//vAmbientColor += gl_LightSource[i].ambient * fAmbient;
 
-		if(bUseDiffuseMap)
+		if(uHasDiffuseMap)
 			vDiffuseColor += texture2D(uDiffuseMap, gl_TexCoord[0].st) * gl_LightSource[i].diffuse * fDiffuse;
 		else
 			vDiffuseColor += gl_LightSource[i].diffuse * fDiffuse; 
 
-		if(bUseSpecularMap)
+		if(uHasSpecularMap)
 			vSpecularColor += texture2D(uSpecularMap, gl_TexCoord[0].st) * gl_LightSource[i].specular * fSpecular;
 		else
 			vSpecularColor += gl_LightSource[i].specular * fSpecular; 
