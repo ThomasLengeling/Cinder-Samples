@@ -170,6 +170,28 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+typedef std::shared_ptr<class RenderPassCBFilter> RenderPassCBFilterRef;
+
+class RenderPassCBFilter : public RenderPass
+{
+public:
+	RenderPassCBFilter(void) : 
+		RenderPass()
+	{ assert(false); /* not supported */ }
+	RenderPassCBFilter( const ci::gl::Fbo::Format& format ) : 
+		RenderPass(format) { setClearColor(ci::Color::white()); }
+
+	static RenderPassCBFilterRef create();
+
+	void resize(int width, int height);
+	void render(const ci::CameraPersp& camera) { assert(false); /* not supported */ }
+	void render();
+
+	void loadShader();
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
 typedef std::shared_ptr<class RenderPassComposite> RenderPassCompositeRef;
 
 class RenderPassComposite : public RenderPass
@@ -192,27 +214,5 @@ public:
 
 public:
 	bool bShowNormalMap;
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
-
-typedef std::shared_ptr<class RenderPassCBFilter> RenderPassCBFilterRef;
-
-class RenderPassCBFilter : public RenderPass
-{
-public:
-	RenderPassCBFilter(void) : 
-		RenderPass()
-	{ assert(false); /* not supported */ }
-	RenderPassCBFilter( const ci::gl::Fbo::Format& format ) : 
-		RenderPass(format) { setClearColor(ci::Color::white()); }
-
-	static RenderPassCBFilterRef create();
-
-	void resize(int width, int height);
-	void render(const ci::CameraPersp& camera) { assert(false); /* not supported */ }
-	void render();
-
-	void loadShader();
 };
 

@@ -348,7 +348,7 @@ RenderPassSSAORef RenderPassSSAO::create()
 void RenderPassSSAO::resize(int width, int height)
 {
 	RenderPass::resize(width, height);
-	setFlipped(false);
+	setFlipped(true);
 }
 
 void RenderPassSSAO::render(const CameraPersp& camera)
@@ -450,54 +450,6 @@ bool RenderPassSSAO::resizeSsaoNoise()
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-RenderPassCompositeRef RenderPassComposite::create()
-{
-	return std::make_shared<RenderPassComposite>(); 
-}
-
-void RenderPassComposite::resize(int width, int height)
-{
-	// output to current buffer - don't create frame buffer
-}
-
-void RenderPassComposite::render(const CameraPersp& camera)
-{
-	Area viewport = gl::getViewport();
-
-	float fWidth = 1.0f / viewport.getWidth();
-	float fHeight = 1.0f / viewport.getHeight();
-	Vec2i vOrigin = viewport.getUL();
-
-	Vec4f screenParams = Vec4f( (vOrigin.x * fWidth), (vOrigin.y * fHeight), fWidth, fHeight );
-
-	getShader().bind();
-	getShader().uniform( "uScreenParams", screenParams );
-	//getShader().uniform( "bUseDiffuseMap", bUseDiffuseMap );
-	//getShader().uniform( "bUseSpecularMap", bUseSpecularMap );
-	//getShader().uniform( "bUseNormalMap", bUseNormalMap );
-	//getShader().uniform( "bUseEmmisiveMap", bUseEmmisiveMap );
-	getShader().uniform( "bShowNormalMap", bShowNormalMap );
-	getShader().unbind();
-
-	RenderPass::render(camera);
-}
-
-void RenderPassComposite::loadShader()
-{
-	RenderPass::loadShader(	loadAsset("shader/composite_vert.glsl"),
-							loadAsset("shader/composite_frag.glsl"));
-	
-	getShader().bind();
-	getShader().uniform( "uDiffuseMap", 0 );
-	getShader().uniform( "uSpecularMap", 1 );
-	getShader().uniform( "uNormalMap", 2 );
-	getShader().uniform( "uEmmisiveMap", 3 );
-	getShader().uniform( "uSSAOMap", 4 );
-	getShader().unbind();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-
 RenderPassCBFilterRef RenderPassCBFilter::create()
 {
 	// We will write the SSAO to the red channel, and view space Z to the green channel,
@@ -555,5 +507,53 @@ void RenderPassCBFilter::loadShader()
 {
 	RenderPass::loadShader(	loadAsset("shader/cross_bilateral_filter_vert.glsl"),
 							loadAsset("shader/cross_bilateral_filter_frag.glsl"));
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+RenderPassCompositeRef RenderPassComposite::create()
+{
+	return std::make_shared<RenderPassComposite>(); 
+}
+
+void RenderPassComposite::resize(int width, int height)
+{
+	// output to current buffer - don't create frame buffer
+}
+
+void RenderPassComposite::render(const CameraPersp& camera)
+{
+	Area viewport = gl::getViewport();
+
+	float fWidth = 1.0f / viewport.getWidth();
+	float fHeight = 1.0f / viewport.getHeight();
+	Vec2i vOrigin = viewport.getUL();
+
+	Vec4f screenParams = Vec4f( (vOrigin.x * fWidth), (vOrigin.y * fHeight), fWidth, fHeight );
+
+	getShader().bind();
+	getShader().uniform( "uScreenParams", screenParams );
+	//getShader().uniform( "bUseDiffuseMap", bUseDiffuseMap );
+	//getShader().uniform( "bUseSpecularMap", bUseSpecularMap );
+	//getShader().uniform( "bUseNormalMap", bUseNormalMap );
+	//getShader().uniform( "bUseEmmisiveMap", bUseEmmisiveMap );
+	getShader().uniform( "bShowNormalMap", bShowNormalMap );
+	getShader().unbind();
+
+	RenderPass::render(camera);
+}
+
+void RenderPassComposite::loadShader()
+{
+	RenderPass::loadShader(	loadAsset("shader/composite_vert.glsl"),
+							loadAsset("shader/composite_frag.glsl"));
+	
+	getShader().bind();
+	getShader().uniform( "uDiffuseMap", 0 );
+	getShader().uniform( "uSpecularMap", 1 );
+	getShader().uniform( "uNormalMap", 2 );
+	getShader().uniform( "uEmmisiveMap", 3 );
+	getShader().uniform( "uSSAOMap", 4 );
+	getShader().unbind();
 }
 

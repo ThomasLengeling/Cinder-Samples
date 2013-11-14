@@ -93,9 +93,10 @@ private:
 
 	bool				bEnableSSAO;
 
+	bool				bShowWireframe;
 	bool				bShowNormalsAndTangents;
 	bool				bShowNormalMap;
-	bool				bShowWireframe;
+	bool				bShowRenderPasses;
 
 	float				fTime;
 	Anim<float>			fOpacity;
@@ -159,9 +160,10 @@ void DeferredRenderingApp::setup()
 	mParams->addParam( "Auto Rotate Model", &bAutoRotate );
 	mParams->addParam( "Animate Light", &bAnimateLantern );
 	mParams->addSeparator();
+	mParams->addParam( "Show Wireframe", &bShowWireframe );
 	mParams->addParam( "Show Normal Map", &mPassComposite->bShowNormalMap );
 	mParams->addParam( "Show Normals & Tangents", &bShowNormalsAndTangents );
-	mParams->addParam( "Show Wireframe", &bShowWireframe );
+	mParams->addParam( "Show Render Passes", &bShowRenderPasses );
 	mParams->addSeparator();
 	mParams->addParam( "Enable Ambient Occlusion", &bEnableSSAO );
 	mParams->addParam( "Enable Diffuse Map", &mMesh->bUseDiffuseMap );
@@ -192,9 +194,10 @@ void DeferredRenderingApp::setup()
 	bAutoRotate = false;
 	fAutoRotateAngle = 0.0f;
 
+	bShowWireframe = false;
 	bEnableSSAO = true;
 	bShowNormalsAndTangents = false;
-	bShowWireframe = false;
+	bShowRenderPasses = false;
 
 	// load texture(s)
 	try {		
@@ -288,6 +291,19 @@ void DeferredRenderingApp::draw()
 			mLightAmbient->disable();
 			mLightLantern->disable();
 		}
+		
+		// 
+		if(bShowRenderPasses)
+		{
+			int w = getWindowWidth();
+			int h = getWindowHeight();
+
+			gl::color( Color(1, 1, 1) );
+			gl::draw( mPassNormalDepth->getTexture(0), Area(w*4/5, 0, w, h*1/5) );
+			//gl::color( Color(1, 0, 0) );
+			gl::draw( mPassSSAO->getTexture(0), Area(w*4/5, h*1/5, w, h*2/5) );
+			gl::draw( mPassCrossBilateralFilter->getTexture(0), Area(w*4/5, h*2/5, w, h*3/5) );
+		}
 
 		// render our parameter window
 		if(mParams)
@@ -301,19 +317,6 @@ void DeferredRenderingApp::draw()
 		gl::color( ColorA(1, 1, 1, fOpacity.value()) );
 		gl::draw( mCopyrightMap, mCopyrightMap->getBounds(), centered );
 		gl::disableAlphaBlending();
-//*/
-		/*
-		int w = getWindowWidth();
-		int h = getWindowHeight();
-
-		gl::color( Color::white() );
-		//gl::draw( mPassNormalDepth->getTexture(0), Area(w*2/4, 0, w*3/4, h*1/4) );
-		//gl::draw( mPassSSAO->getTexture(0), Area(w*3/4, 0, w, h*1/4) );
-		//gl::draw( mPassCrossBilateralFilter->getTexture(0), Area(w*3/4, h*1/4, w, h*2/4) );
-		
-		//gl::draw( mPassSSAO->getTexture(0), Area(0, 0, w/2, h) );
-		gl::draw( mPassCrossBilateralFilter->getTexture(0), Area(0,0,w,h) );
-//*/
 	}
 }
 
