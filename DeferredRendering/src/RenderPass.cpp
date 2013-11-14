@@ -28,7 +28,8 @@ using namespace ci;
 using namespace ci::app;
 
 RenderPass::RenderPass() : 
-	mDownScaleSize(ORIGINAL), 
+	mDownScaleSize(FULL), 
+	mDrawBuffer(0),
 	mClearColor(Color::black())
 {
 	mInputTextures.clear();
@@ -36,7 +37,8 @@ RenderPass::RenderPass() :
 }
 
 RenderPass::RenderPass( const gl::Fbo::Format& format ) : 
-	mDownScaleSize(ORIGINAL),
+	mDownScaleSize(FULL),
+	mDrawBuffer(0),
 	mClearColor(Color::black()),
 	mFormat(format)
 {
@@ -79,10 +81,13 @@ void RenderPass::render()
 	if(mFrameBuffer)
 	{
 		mFrameBuffer.bindFramebuffer();
-		gl::setViewport( mFrameBuffer.getBounds() );
+		gl::setViewport( getTexture(mDrawBuffer).getBounds() );
 
 		gl::pushMatrices();
-		gl::setMatricesWindow( mFrameBuffer.getSize(), true );
+		gl::setMatricesWindow( mFrameBuffer.getSize(), false );
+
+		if(mFormat.getNumColorBuffers() > 1)
+			glDrawBuffer(GL_COLOR_ATTACHMENT0 + mDrawBuffer);
 	}
 	else
 	{
@@ -133,13 +138,16 @@ void RenderPass::render(const ci::CameraPersp& camera)
 	if(mFrameBuffer)
 	{
 		mFrameBuffer.bindFramebuffer();
-		gl::setViewport( mFrameBuffer.getBounds() );
+		gl::setViewport( getTexture(mDrawBuffer).getBounds() );
 
 		if(mFrameBuffer.getFormat().hasDepthBuffer()) 
 		{
 			gl::enableDepthRead();
 			gl::enableDepthWrite();
 		}
+
+		if(mFormat.getNumColorBuffers() > 1)
+			glDrawBuffer(GL_COLOR_ATTACHMENT0 + mDrawBuffer);
 	}
 	else
 	{
@@ -170,7 +178,15 @@ void RenderPass::render(const ci::CameraPersp& camera)
 
 		// render meshes
 		for( auto itr=mInputMeshes.begin(); itr != mInputMeshes.end(); ++itr )
+		{
+			// these uniforms are set so you can use them in your shaders
+			getShader().uniform( "uHasDiffuseMap", (*itr)->hasDiffuseMap() );
+			getShader().uniform( "uHasSpecularMap", (*itr)->hasSpecularMap() );
+			getShader().uniform( "uHasNormalMap", (*itr)->hasNormalMap() );
+			getShader().uniform( "uHasEmmisiveMap", (*itr)->hasEmmisiveMap() );
+
 			(*itr)->render();
+		}
 
 		if(mInputShader)
 			mInputShader.unbind();
@@ -312,7 +328,6 @@ void RenderPassNormalDepth::loadShader()
 
 	getShader().bind();
 	getShader().uniform( "uNormalMap", 2 );
-	getShader().uniform( "uHasNormalMap", true );
 	getShader().unbind();
 }
 
@@ -366,7 +381,6 @@ void RenderPassSSAO::loadShader()
 
 	getShader().bind();
 	getShader().uniform( "uNormalMap", 2 );
-	getShader().uniform( "uHasNormalMap", true );
 	getShader().unbind();
 
 	resizeSsaoKernel();
@@ -458,10 +472,10 @@ void RenderPassComposite::render(const CameraPersp& camera)
 
 	getShader().bind();
 	getShader().uniform( "uScreenParams", screenParams );
-	getShader().uniform( "bUseDiffuseMap", bUseDiffuseMap );
-	getShader().uniform( "bUseSpecularMap", bUseSpecularMap );
-	getShader().uniform( "bUseNormalMap", bUseNormalMap );
-	getShader().uniform( "bUseEmmisiveMap", bUseEmmisiveMap );
+	//getShader().uniform( "bUseDiffuseMap", bUseDiffuseMap );
+	//getShader().uniform( "bUseSpecularMap", bUseSpecularMap );
+	//getShader().uniform( "bUseNormalMap", bUseNormalMap );
+	//getShader().uniform( "bUseEmmisiveMap", bUseEmmisiveMap );
 	getShader().uniform( "bShowNormalMap", bShowNormalMap );
 	getShader().unbind();
 
@@ -490,7 +504,8 @@ RenderPassCBFilterRef RenderPassCBFilter::create()
 	// just like the SSAO pass.
 	gl::Fbo::Format fmt;
 	fmt.setSamples(0);
-	fmt.setColorInternalFormat( GL_LUMINANCE16F_ARB );
+	fmt.setColorInternalFormat( GL_RG16F );
+	fmt.enableColorBuffer( true, 2 );
 	fmt.enableDepthBuffer(false);
 
 	return std::make_shared<RenderPassCBFilter>(fmt); 
@@ -512,10 +527,27 @@ void RenderPassCBFilter::render()
 
 	Vec4f screenParams = Vec4f( (vOrigin.x * fWidth), (vOrigin.y * fHeight), fWidth, fHeight );
 
+	// we need two passes: 
+	//  first a horizontal pass to our second render target
 	getShader().bind();
 	getShader().uniform( "uScreenParams", screenParams );
+	getShader().uniform( "uSSAOMap", 0 );
+	getShader().uniform( "uDirection", Vec2f(1, 0) );
 	getShader().unbind();
 
+	setDrawBuffer(1);
+	RenderPass::render();
+	
+	//  then a vertical pass to our first render target,
+	//  using our second target as source
+	getTexture(1).bind(1);
+
+	getShader().bind();
+	getShader().uniform( "uSSAOMap", 1 );
+	getShader().uniform( "uDirection", Vec2f(0, 1) );
+	getShader().unbind();
+
+	setDrawBuffer(0);
 	RenderPass::render();
 }
 
@@ -523,9 +555,5 @@ void RenderPassCBFilter::loadShader()
 {
 	RenderPass::loadShader(	loadAsset("shader/cross_bilateral_filter_vert.glsl"),
 							loadAsset("shader/cross_bilateral_filter_frag.glsl"));
-	
-	getShader().bind();
-	getShader().uniform( "uSSAOMap", 0 );
-	getShader().unbind();
 }
 

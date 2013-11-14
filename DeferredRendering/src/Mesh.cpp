@@ -213,6 +213,11 @@ bool Mesh::createDebugMesh()
 	// create a debug mesh, showing normals, tangents and bitangents
 	size_t numVertices = mTriMesh.getNumVertices();
 
+	// determine the right scale, based on the bounding box
+	AxisAlignedBox3f bbox = mTriMesh.calcBoundingBox();
+	Vec3f size = bbox.getMax() - bbox.getMin();
+	float scale = math<float>::max( math<float>::max( float(size.x), float(size.y) ), float(size.z) ) / 100.0f;
+
 	if(numVertices > 0)
 	{
 		std::vector<Vec3f>		vertices;	vertices.reserve( numVertices * 4 );
@@ -223,9 +228,9 @@ bool Mesh::createDebugMesh()
 			uint32_t idx = vertices.size();
 
 			vertices.push_back( mTriMesh.getVertices()[i] );
-			vertices.push_back( mTriMesh.getVertices()[i] + mTriMesh.getTangents()[i] );
-			vertices.push_back( mTriMesh.getVertices()[i] + mTriMesh.getNormals()[i].cross(mTriMesh.getTangents()[i]) );
-			vertices.push_back( mTriMesh.getVertices()[i] + mTriMesh.getNormals()[i] );
+			vertices.push_back( mTriMesh.getVertices()[i] + scale * mTriMesh.getTangents()[i] );
+			vertices.push_back( mTriMesh.getVertices()[i] + scale * mTriMesh.getNormals()[i].cross(mTriMesh.getTangents()[i]) );
+			vertices.push_back( mTriMesh.getVertices()[i] + scale * mTriMesh.getNormals()[i] );
 
 			colors.push_back( Color(0, 0, 0) );
 			colors.push_back( Color(1, 0, 0) );

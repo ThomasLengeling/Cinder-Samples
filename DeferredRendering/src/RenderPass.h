@@ -36,7 +36,7 @@ typedef std::shared_ptr<class RenderPass> RenderPassRef;
 class RenderPass
 {
 public:
-	enum DownScaleSize { ORIGINAL = 0, HALF, QUARTER, EIGHT };
+	enum DownScaleSize { FULL = 0, HALF, QUARTER, EIGHT };
 	
 	RenderPass(void);
 	RenderPass( const ci::gl::Fbo::Format& format );
@@ -69,6 +69,7 @@ public:
 	void					setFlipped( bool flip = true );
 
 	void					setDownScaleSize(DownScaleSize size) { mDownScaleSize = size; }
+	void					setDrawBuffer(int slot) { mDrawBuffer = ci::math<int>::clamp( slot, 0, mFormat.getNumColorBuffers() - 1 ); }
 
 protected:
 	ci::gl::Fbo&			getFrameBuffer() { return mFrameBuffer; }
@@ -90,6 +91,8 @@ private:
 	ci::gl::Fbo						mFrameBuffer;
 
 	ci::ColorA						mClearColor;
+
+	int								mDrawBuffer;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -159,8 +162,8 @@ private:
 	bool resizeSsaoNoise();
 
 public:
-	static const int	kSsaoNoiseSize = 32;	// HQ: 1   / LQ: 32
-	static const int	kSsaoKernelSize = 32;	// HQ: 256 / LQ: 32
+	static const int	kSsaoNoiseSize = 4;
+	static const int	kSsaoKernelSize = 32;
 	
 	ci::gl::TextureRef	mTextureNoise;
 };

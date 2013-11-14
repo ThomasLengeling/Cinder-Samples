@@ -85,5 +85,5 @@ void main()
 	
 	// perform SSAO and output to buffer
 	gl_FragColor.r = calculateOcclusion(mKernel, vPosition, uRadius);
-	gl_FragColor.g = fDepth;
+	gl_FragColor.g = fLinearDepth;
 }
