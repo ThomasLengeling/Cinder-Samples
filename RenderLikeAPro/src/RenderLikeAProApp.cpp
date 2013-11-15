@@ -42,12 +42,14 @@
 
 #include "Mesh.h"
 #include "RenderPass.h"
+#include "Shader.h"
 
 using namespace ci;
 using namespace ci::app;
 using namespace std;
+using namespace ph;
 
-class DeferredRenderingApp : public AppNative {
+class RenderLikeAProApp : public AppNative {
 public:
 	void	prepareSettings( Settings* settings );
 
@@ -78,8 +80,6 @@ private:
 
 	gl::TextureRef		mCopyrightMap;
 
-	MeshRef				mMesh;
-
 	bool				bAutoRotate;
 	float				fAutoRotateAngle;
 
@@ -103,54 +103,62 @@ private:
 
 	params::InterfaceGlRef		mParams;
 
-	RenderPassWireframeRef		mPassWireframe;
-	RenderPassNormalDepthRef	mPassNormalDepth;
-	RenderPassSSAORef			mPassSSAO;
-	RenderPassCBFilterRef		mPassCrossBilateralFilter;
-	RenderPassCompositeRef		mPassComposite;
+	// the following members are custom types defined in namespace ph::render
+	render::MeshRef		mMesh;
+
+	render::RenderPassWireframeRef		mPassWireframe;
+	render::RenderPassNormalDepthRef	mPassNormalDepth;
+	render::RenderPassSSAORef			mPassSSAO;
+	render::RenderPassCBFilterRef		mPassCrossBilateralFilter;
+	render::RenderPassCompositeRef		mPassComposite;
+
+	render::ShaderRef					mShader;
 };
 
-void DeferredRenderingApp::prepareSettings(Settings* settings)
+void RenderLikeAProApp::prepareSettings(Settings* settings)
 {
 	settings->setWindowSize( 1024, 768 );
 	settings->setTitle( "Render Effects Demo" );
 	settings->setFrameRate( 200.0f );
 }
 
-void DeferredRenderingApp::setup()
-{	
+void RenderLikeAProApp::setup()
+{
+	mShader = render::Shader::create("ssao");
+	mShader->load();
+
 	// load mesh file
 	try {
-		fs::path mshFile = getAssetPath("") / "mesh/leprechaun.msh";
-		mMesh = Mesh::create(mshFile);
-		mMesh->setDiffuseMap( loadImage( loadAsset("texture/leprechaun_diffuse.png") ) );
-		mMesh->setSpecularMap( loadImage( loadAsset("texture/leprechaun_specular.png") ) );
-		mMesh->setNormalMap( loadImage( loadAsset("texture/leprechaun_normal.png") ) );
-		mMesh->setEmissiveMap( loadImage( loadAsset("texture/leprechaun_emissive.png") ) );
+		fs::path mshFile = getAssetPath("") / "models/leprechaun.msh";
+		mMesh = render::Mesh::create(mshFile);
+		mMesh->setDiffuseMap( loadImage( loadAsset("textures/leprechaun_diffuse.png") ) );
+		mMesh->setSpecularMap( loadImage( loadAsset("textures/leprechaun_specular.png") ) );
+		mMesh->setNormalMap( loadImage( loadAsset("textures/leprechaun_normal.png") ) );
+		mMesh->setEmissiveMap( loadImage( loadAsset("textures/leprechaun_emissive.png") ) );
 	}
 	catch( const std::exception& e ) {
 		console() << "Error loading mesh: " << e.what() << std::endl;
 	}
 
 	// setup render passes
-	mPassWireframe = RenderPassWireframe::create();
+	mPassWireframe = render::RenderPassWireframe::create();
 	mPassWireframe->loadShader();
 	mPassWireframe->addMesh( mMesh );
 
-	mPassNormalDepth = RenderPassNormalDepth::create();
-	mPassNormalDepth->setDownScaleSize( RenderPass::HALF );
+	mPassNormalDepth = render::RenderPassNormalDepth::create();
+	mPassNormalDepth->setDownScaleSize( render::RenderPass::HALF );
 	mPassNormalDepth->loadShader();
 	mPassNormalDepth->addMesh( mMesh );
 
-	mPassSSAO = RenderPassSSAO::create();
-	mPassSSAO->setDownScaleSize( RenderPass::HALF );
+	mPassSSAO = render::RenderPassSSAO::create();
+	mPassSSAO->setDownScaleSize( render::RenderPass::HALF );
 	mPassSSAO->loadShader();
 
-	mPassCrossBilateralFilter = RenderPassCBFilter::create();
-	mPassCrossBilateralFilter->setDownScaleSize( RenderPass::HALF );
+	mPassCrossBilateralFilter = render::RenderPassCBFilter::create();
+	mPassCrossBilateralFilter->setDownScaleSize( render::RenderPass::HALF );
 	mPassCrossBilateralFilter->loadShader();
 
-	mPassComposite = RenderPassComposite::create();
+	mPassComposite = render::RenderPassComposite::create();
 	mPassComposite->setClearColor( Color::black() );
 	mPassComposite->loadShader();
 	mPassComposite->addMesh( mMesh );
@@ -219,7 +227,7 @@ void DeferredRenderingApp::setup()
 	fTime = (float) getElapsedSeconds();
 }
 
-void DeferredRenderingApp::shutdown()
+void RenderLikeAProApp::shutdown()
 {
 	if(mLightAmbient) delete mLightAmbient;
 	if(mLightLantern) delete mLightLantern;
@@ -227,7 +235,7 @@ void DeferredRenderingApp::shutdown()
 	mLightAmbient = mLightLantern = NULL;
 }
 
-void DeferredRenderingApp::update()
+void RenderLikeAProApp::update()
 {
 	// keep track of time
 	float fElapsed = (float) getElapsedSeconds() - fTime;
@@ -244,7 +252,7 @@ void DeferredRenderingApp::update()
 	}
 }
 
-void DeferredRenderingApp::draw()
+void RenderLikeAProApp::draw()
 {
 	gl::clear( Color::black() ); 
 	gl::color( Color::white() );
@@ -322,7 +330,7 @@ void DeferredRenderingApp::draw()
 	}
 }
 
-void DeferredRenderingApp::resize()
+void RenderLikeAProApp::resize()
 {
 	mCamera.setAspectRatio( getWindowAspectRatio() );
 
@@ -343,19 +351,19 @@ void DeferredRenderingApp::resize()
 	mPassComposite->attachTexture(4, mPassCrossBilateralFilter->getTexture(0));
 }
 
-void DeferredRenderingApp::mouseDown( MouseEvent event )
+void RenderLikeAProApp::mouseDown( MouseEvent event )
 {
 	mMayaCamera.setCurrentCam( mCamera );
 	mMayaCamera.mouseDown( event.getPos() );
 }
 
-void DeferredRenderingApp::mouseDrag( MouseEvent event )
+void RenderLikeAProApp::mouseDrag( MouseEvent event )
 {
 	mMayaCamera.mouseDrag( event.getPos(), event.isLeftDown(), event.isMiddleDown(), event.isRightDown() );
 	mCamera = mMayaCamera.getCamera();
 }
 
-void DeferredRenderingApp::keyDown( KeyEvent event )
+void RenderLikeAProApp::keyDown( KeyEvent event )
 {
 	switch( event.getCode() )
 	{
@@ -371,4 +379,4 @@ void DeferredRenderingApp::keyDown( KeyEvent event )
 	}
 }
 
-CINDER_APP_NATIVE( DeferredRenderingApp, RendererGl )
+CINDER_APP_NATIVE( RenderLikeAProApp, RendererGl )

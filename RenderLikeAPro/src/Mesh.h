@@ -4,6 +4,8 @@
 #include "cinder/gl/Texture.h"
 #include "cinder/gl/Vbo.h"
 
+namespace ph { namespace render {
+
 typedef std::shared_ptr<class Mesh> MeshRef;
 
 class Mesh
@@ -93,3 +95,4 @@ public:
 	bool					bUseEmissiveMap;
 };
 
+} } // namespace ph::render

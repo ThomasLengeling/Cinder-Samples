@@ -26,6 +26,8 @@
 
 using namespace ci;
 using namespace ci::app;
+using namespace ph;
+using namespace ph::render;
 
 RenderPass::RenderPass() : 
 	mDownScaleSize(FULL), 
@@ -292,9 +294,9 @@ void RenderPassWireframe::render(const CameraPersp& camera)
 
 void RenderPassWireframe::loadShader()
 {
-	RenderPass::loadShader(	loadAsset("shader/wireframe_vert.glsl"), 
-							loadAsset("shader/wireframe_frag.glsl"),
-							loadAsset("shader/wireframe_geom.glsl"),
+	RenderPass::loadShader(	loadAsset("shaders/wireframe_vert.glsl"), 
+							loadAsset("shaders/wireframe_frag.glsl"),
+							loadAsset("shaders/wireframe_geom.glsl"),
 							GL_TRIANGLES, GL_TRIANGLE_STRIP, 3);
 }
 
@@ -323,8 +325,8 @@ void RenderPassNormalDepth::render(const CameraPersp& camera)
 
 void RenderPassNormalDepth::loadShader()
 {
-	RenderPass::loadShader(	loadAsset("shader/normals_depth_vert.glsl"),
-							loadAsset("shader/normals_depth_frag.glsl"));
+	RenderPass::loadShader(	loadAsset("shaders/normals_depth_vert.glsl"),
+							loadAsset("shaders/normals_depth_frag.glsl"));
 
 	getShader().bind();
 	getShader().uniform( "uNormalMap", 2 );
@@ -376,8 +378,8 @@ void RenderPassSSAO::render(const CameraPersp& camera)
 
 void RenderPassSSAO::loadShader()
 {	
-	RenderPass::loadShader(	loadAsset("shader/ssao_vert.glsl"),
-							loadAsset("shader/ssao_frag.glsl") );
+	RenderPass::loadShader(	loadAsset("shaders/ssao_vert.glsl"),
+							loadAsset("shaders/ssao_frag.glsl") );
 
 	getShader().bind();
 	getShader().uniform( "uNormalMap", 2 );
@@ -505,8 +507,8 @@ void RenderPassCBFilter::render()
 
 void RenderPassCBFilter::loadShader()
 {
-	RenderPass::loadShader(	loadAsset("shader/cross_bilateral_filter_vert.glsl"),
-							loadAsset("shader/cross_bilateral_filter_frag.glsl"));
+	RenderPass::loadShader(	loadAsset("shaders/cross_bilateral_filter_vert.glsl"),
+							loadAsset("shaders/cross_bilateral_filter_frag.glsl"));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -545,8 +547,8 @@ void RenderPassComposite::render(const CameraPersp& camera)
 
 void RenderPassComposite::loadShader()
 {
-	RenderPass::loadShader(	loadAsset("shader/composite_vert.glsl"),
-							loadAsset("shader/composite_frag.glsl"));
+	RenderPass::loadShader(	loadAsset("shaders/composite_vert.glsl"),
+							loadAsset("shaders/composite_frag.glsl"));
 	
 	getShader().bind();
 	getShader().uniform( "uDiffuseMap", 0 );

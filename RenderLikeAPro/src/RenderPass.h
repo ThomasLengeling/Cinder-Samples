@@ -29,6 +29,8 @@
 
 #include "Mesh.h"
 
+namespace ph { namespace render {
+
 /////////////////////////////////////////////////////////////////////////////////////
 
 typedef std::shared_ptr<class RenderPass> RenderPassRef;
@@ -216,3 +218,4 @@ public:
 	bool bShowNormalMap;
 };
 
+} } // namespace ph::render

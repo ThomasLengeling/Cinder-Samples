@@ -1,6 +1,8 @@
 #include "Mesh.h"
 
 using namespace ci;
+using namespace ph;
+using namespace ph::render;
 
 Mesh::Mesh(void) :
 	mPosition( Vec3f::zero() ), 
@@ -21,13 +23,12 @@ Mesh::~Mesh(void)
 
 MeshRef Mesh::create()
 {
-	MeshRef mesh = MeshRef( new Mesh() );
-	return mesh;
+	return std::make_shared<Mesh>();
 }
 
 MeshRef Mesh::create( const ci::fs::path& mshFile )
 {
-	MeshRef mesh = MeshRef( new Mesh() );
+	MeshRef mesh = std::make_shared<Mesh>();
 	mesh->readMesh(mshFile);
 	return mesh;
 }
