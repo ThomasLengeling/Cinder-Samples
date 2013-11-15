@@ -52,10 +52,10 @@ public:
 	ci::gl::TextureRef		getNormalMap() { return mNormalMapRef; }
 	void					setNormalMap(const ci::ImageSourceRef source) { mNormalMapRef = ci::gl::Texture::create(source); }
 
-	bool					isEmmisiveMapEnabled() const { return mEmmisiveMapRef != ci::gl::TextureRef() && bUseEmmisiveMap; }
-	void					enableEmmisiveMap( bool enable = true ) { bUseEmmisiveMap = enable; }
-	ci::gl::TextureRef		getEmmisiveMap() { return mEmmisiveMapRef; }
-	void					setEmmisiveMap(const ci::ImageSourceRef source) { mEmmisiveMapRef = ci::gl::Texture::create(source); }
+	bool					isEmissiveMapEnabled() const { return mEmissiveMapRef != ci::gl::TextureRef() && bUseEmissiveMap; }
+	void					enableEmissiveMap( bool enable = true ) { bUseEmissiveMap = enable; }
+	ci::gl::TextureRef		getEmissiveMap() { return mEmissiveMapRef; }
+	void					setEmissiveMap(const ci::ImageSourceRef source) { mEmissiveMapRef = ci::gl::Texture::create(source); }
 
 	void					enableDebugging( bool enable = true );
 	void					disableDebugging();
@@ -84,12 +84,12 @@ private:
 	ci::gl::TextureRef		mDiffuseMapRef;
 	ci::gl::TextureRef		mSpecularMapRef;
 	ci::gl::TextureRef		mNormalMapRef;
-	ci::gl::TextureRef		mEmmisiveMapRef;
+	ci::gl::TextureRef		mEmissiveMapRef;
 
 public:
 	bool					bUseDiffuseMap;
 	bool					bUseSpecularMap;
 	bool					bUseNormalMap;
-	bool					bUseEmmisiveMap;
+	bool					bUseEmissiveMap;
 };
 

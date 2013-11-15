@@ -89,7 +89,7 @@ private:
 	bool				bEnableDiffuseMap;
 	bool				bEnableSpecularMap;
 	bool				bEnableNormalMap;
-	bool				bEnableEmmisiveMap;
+	bool				bEnableEmissiveMap;
 
 	bool				bEnableSSAO;
 
@@ -126,7 +126,7 @@ void DeferredRenderingApp::setup()
 		mMesh->setDiffuseMap( loadImage( loadAsset("texture/leprechaun_diffuse.png") ) );
 		mMesh->setSpecularMap( loadImage( loadAsset("texture/leprechaun_specular.png") ) );
 		mMesh->setNormalMap( loadImage( loadAsset("texture/leprechaun_normal.png") ) );
-		mMesh->setEmmisiveMap( loadImage( loadAsset("texture/leprechaun_emmisive.png") ) );
+		mMesh->setEmissiveMap( loadImage( loadAsset("texture/leprechaun_emissive.png") ) );
 	}
 	catch( const std::exception& e ) {
 		console() << "Error loading mesh: " << e.what() << std::endl;
@@ -169,7 +169,7 @@ void DeferredRenderingApp::setup()
 	mParams->addParam( "Enable Diffuse Map", &mMesh->bUseDiffuseMap );
 	mParams->addParam( "Enable Specular Map", &mMesh->bUseSpecularMap );
 	mParams->addParam( "Enable Normal Map", &mMesh->bUseNormalMap );
-	mParams->addParam( "Enable Emmisive Map", &mMesh->bUseEmmisiveMap );
+	mParams->addParam( "Enable Emissive Map", &mMesh->bUseEmissiveMap );
 	mParams->setOptions( "", "valueswidth=fit" );
 
 	// setup camera and lights
@@ -193,6 +193,8 @@ void DeferredRenderingApp::setup()
 	// default settings
 	bAutoRotate = false;
 	fAutoRotateAngle = 0.0f;
+
+	bAnimateLantern = true;
 
 	bShowWireframe = false;
 	bEnableSSAO = true;

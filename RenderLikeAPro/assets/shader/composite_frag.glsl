@@ -8,13 +8,13 @@ varying vec3		vBiTangent;
 uniform	sampler2D	uDiffuseMap;
 uniform	sampler2D	uSpecularMap;
 uniform	sampler2D	uNormalMap;
-uniform	sampler2D	uEmmisiveMap;
+uniform	sampler2D	uEmissiveMap;
 uniform	sampler2D	uSSAOMap;
 
 uniform bool		uHasDiffuseMap;
 uniform bool		uHasSpecularMap;
 uniform bool		uHasNormalMap;
-uniform bool		uHasEmmisiveMap;
+uniform bool		uHasEmissiveMap;
 
 uniform bool		bShowNormalMap;
 
@@ -33,8 +33,7 @@ void main()
 	float	fAmbient = pow(texture2D(uSSAOMap, vTexCoord).r, 0.75);	// non-standard attenuation of SSAO
 
 	// apply each of our light sources
-	vec4	vAmbientColor	= vec4(0, 0, 0, 1);
-	vec4	vDiffuseColor	= uHasEmmisiveMap ? texture2D(uEmmisiveMap, gl_TexCoord[0].st) : vec4(0, 0, 0, 1);
+	vec4	vDiffuseColor	= uHasEmissiveMap ? texture2D(uEmissiveMap, gl_TexCoord[0].st) : vec4(0, 0, 0, 1);
 	vec4	vSpecularColor	= vec4(0, 0, 0, 1);  
 
 	for(int i=0; i<2; ++i)
@@ -53,8 +52,6 @@ void main()
 		fSpecular = clamp(fSpecular, 0.0, 1.0);
 
 		// calculate final colors
-		//vAmbientColor += gl_LightSource[i].ambient * fAmbient;
-
 		if(uHasDiffuseMap)
 			vDiffuseColor += texture2D(uDiffuseMap, gl_TexCoord[0].st) * gl_LightSource[i].diffuse * fDiffuse;
 		else
@@ -67,6 +64,6 @@ void main()
 	}
 
 	// output colors to buffer
-	gl_FragColor.rgb = bShowNormalMap ? vSurfaceNormal : (vAmbientColor + vDiffuseColor + vSpecularColor).rgb;
+	gl_FragColor.rgb = bShowNormalMap ? vSurfaceNormal : (vDiffuseColor + vSpecularColor).rgb;
 	gl_FragColor.a = 1.0;
 }

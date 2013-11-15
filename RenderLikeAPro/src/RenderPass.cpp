@@ -183,7 +183,7 @@ void RenderPass::render(const ci::CameraPersp& camera)
 			getShader().uniform( "uHasDiffuseMap", (*itr)->isDiffuseMapEnabled() );
 			getShader().uniform( "uHasSpecularMap", (*itr)->isSpecularMapEnabled() );
 			getShader().uniform( "uHasNormalMap", (*itr)->isNormalMapEnabled() );
-			getShader().uniform( "uHasEmmisiveMap", (*itr)->isEmmisiveMapEnabled() );
+			getShader().uniform( "uHasEmissiveMap", (*itr)->isEmissiveMapEnabled() );
 
 			(*itr)->render();
 		}
@@ -536,7 +536,7 @@ void RenderPassComposite::render(const CameraPersp& camera)
 	//getShader().uniform( "bUseDiffuseMap", bUseDiffuseMap );
 	//getShader().uniform( "bUseSpecularMap", bUseSpecularMap );
 	//getShader().uniform( "bUseNormalMap", bUseNormalMap );
-	//getShader().uniform( "bUseEmmisiveMap", bUseEmmisiveMap );
+	//getShader().uniform( "bUseEmissiveMap", bUseEmissiveMap );
 	getShader().uniform( "bShowNormalMap", bShowNormalMap );
 	getShader().unbind();
 
@@ -552,7 +552,7 @@ void RenderPassComposite::loadShader()
 	getShader().uniform( "uDiffuseMap", 0 );
 	getShader().uniform( "uSpecularMap", 1 );
 	getShader().uniform( "uNormalMap", 2 );
-	getShader().uniform( "uEmmisiveMap", 3 );
+	getShader().uniform( "uEmissiveMap", 3 );
 	getShader().uniform( "uSSAOMap", 4 );
 	getShader().unbind();
 }

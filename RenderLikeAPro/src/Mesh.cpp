@@ -7,7 +7,11 @@ Mesh::Mesh(void) :
 	mOrientation( Quatf::identity() ),
 	mScale( Vec3f::one() ),
 	mIsTransformDirty( true ),
-	mIsDebugEnabled( false )
+	mIsDebugEnabled( false ),
+	bUseDiffuseMap(true),
+	bUseSpecularMap(true),
+	bUseNormalMap(true),
+	bUseEmissiveMap(true)
 {
 }
 
@@ -49,8 +53,8 @@ void Mesh::render( bool textured )
 		if(mNormalMapRef)
 			mNormalMapRef->bind(2);
 
-		if(mEmmisiveMapRef)
-			mEmmisiveMapRef->bind(3);
+		if(mEmissiveMapRef)
+			mEmissiveMapRef->bind(3);
 
 		glEnable( GL_TEXTURE_2D );
 	}
