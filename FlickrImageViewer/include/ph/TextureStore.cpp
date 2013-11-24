@@ -78,8 +78,9 @@ gl::TextureRef TextureStore::load(const string &url, gl::Texture::Format fmt)
 #ifdef _DEBUG 
 		console() << getElapsedSeconds() << ": creating Texture for '" << url << "'." << endl;
 #endif
-		gl::TextureRef texture( new gl::Texture(surface, fmt), std::bind(&TextureStore::remove, this, url) );
+		gl::TextureRef texture( new gl::Texture(surface, fmt) );
 		if(texture) {
+			texture->setDeallocator(TextureStore::remove, (void*) &url);
 			mTextures[ url ] = texture;
 			return texture;
 		}
@@ -92,7 +93,8 @@ gl::TextureRef TextureStore::load(const string &url, gl::Texture::Format fmt)
 	try
 	{
 		ImageSourceRef img = loadImage(url);
-		gl::TextureRef texture( new gl::Texture(img, fmt), std::bind(&TextureStore::remove, this, url) );
+		gl::TextureRef texture( new gl::Texture(img, fmt) );
+		texture->setDeallocator(TextureStore::remove, (void*) &url);
 		mTextures[ url ] = texture;
 
 		return texture;
@@ -102,7 +104,8 @@ gl::TextureRef TextureStore::load(const string &url, gl::Texture::Format fmt)
 	try
 	{
 		ImageSourceRef img = loadImage( loadUrl( Url(url) ) );
-		gl::TextureRef texture( new gl::Texture(img, fmt), std::bind(&TextureStore::remove, this, url) );
+		gl::TextureRef texture( new gl::Texture(img, fmt) );
+		texture->setDeallocator(TextureStore::remove, (void*) &url);
 		mTextures[ url ] = texture;
 
 		return texture;
@@ -132,8 +135,9 @@ gl::TextureRef TextureStore::fetch(const string &url, gl::Texture::Format fmt)
 #ifdef _DEBUG 
 		console() << getElapsedSeconds() << ": creating Texture for '" << url << "'." << endl;
 #endif
-		gl::TextureRef texture( new gl::Texture(surface, fmt), std::bind(&TextureStore::remove, this, url) );
+		gl::TextureRef texture( new gl::Texture(surface, fmt) );
 		if(texture) {
+			texture->setDeallocator(TextureStore::remove, (void*) &url);
 			mTextures[ url ] = texture;
 			return texture;
 		}
@@ -166,6 +170,12 @@ bool TextureStore::isLoading(const string &url)
 bool TextureStore::isLoaded(const string &url)
 {
 	return (mTextures.find( url ) != mTextures.end());
+}
+
+void TextureStore::remove(void* ref)
+{
+	std::string* url = reinterpret_cast<std::string*>(ref);
+	getInstance().remove(*url);
 }
 
 void TextureStore::remove(const std::string &url)

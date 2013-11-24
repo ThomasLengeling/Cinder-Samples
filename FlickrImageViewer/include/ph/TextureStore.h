@@ -79,6 +79,8 @@ protected:
 	TextureStoreThreadPool						mThreads;
 
 private:
+	//! called by Cinder as soon as a TextureRef is no longer in use.
+	static void remove(void* ref);
 	//! called as soon as a TextureRef is no longer in use.
 	void remove(const std::string &url);
 	//! loads files in a separate thread and creates Surfaces. These are then passed to the main thread and turned into Textures.
