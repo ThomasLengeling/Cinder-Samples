@@ -62,33 +62,28 @@ TextureStore::~TextureStore(void)
 	mTextures.clear();
 }
 
-gl::Texture TextureStore::load(const string &url, gl::Texture::Format fmt)
+gl::TextureRef TextureStore::load(const string &url, gl::Texture::Format fmt)
 {
 	// if texture already exists, return it immediately
-	if (mTextures.find( url ) != mTextures.end())
-		return mTextures[ url ];
+	auto itr = mTextures.find( url );
+	if ( itr != mTextures.end())
+		return mTextures[ url ].lock();
 
 	// otherwise, check if the image has loaded and create a texture for it
 	ci::Surface surface;
 	if( mSurfaces.try_pop(url, surface) ) {
 		// done loading
 		mLoadingQueue.erase(url);
-
-		// perform garbage collection to make room for new textures
-		garbageCollect();
 		
 #ifdef _DEBUG 
 		console() << getElapsedSeconds() << ": creating Texture for '" << url << "'." << endl;
 #endif
-		ph::Texture tex( surface, fmt );
-		if(tex) {
-			mTextures[ url ] = tex;
-			return tex;
+		gl::TextureRef texture( new gl::Texture(surface, fmt), std::bind(&TextureStore::remove, this, url) );
+		if(texture) {
+			mTextures[ url ] = texture;
+			return texture;
 		}
 	}
-
-	// perform garbage collection to make room for new textures
-	garbageCollect();
 
 	// load texture and add to TextureList
 #ifdef _DEBUG 
@@ -97,7 +92,7 @@ gl::Texture TextureStore::load(const string &url, gl::Texture::Format fmt)
 	try
 	{
 		ImageSourceRef img = loadImage(url);
-		ph::Texture texture = ph::Texture( img, fmt );
+		gl::TextureRef texture( new gl::Texture(img, fmt), std::bind(&TextureStore::remove, this, url) );
 		mTextures[ url ] = texture;
 
 		return texture;
@@ -107,7 +102,7 @@ gl::Texture TextureStore::load(const string &url, gl::Texture::Format fmt)
 	try
 	{
 		ImageSourceRef img = loadImage( loadUrl( Url(url) ) );
-		ph::Texture texture = ph::Texture( img, fmt );
+		gl::TextureRef texture( new gl::Texture(img, fmt), std::bind(&TextureStore::remove, this, url) );
 		mTextures[ url ] = texture;
 
 		return texture;
@@ -118,31 +113,29 @@ gl::Texture TextureStore::load(const string &url, gl::Texture::Format fmt)
 #ifdef _DEBUG 
 	console() << getElapsedSeconds() << ": error loading texture '" << url << "'!" << endl;
 #endif
-	return gl::Texture();
+	return empty();
 }
 
-gl::Texture TextureStore::fetch(const string &url, gl::Texture::Format fmt)
+gl::TextureRef TextureStore::fetch(const string &url, gl::Texture::Format fmt)
 {
 	// if texture already exists, return it immediately
-	if (mTextures.find( url ) != mTextures.end())
-		return mTextures[ url ];
+	auto itr = mTextures.find( url );
+	if ( itr != mTextures.end())
+		return mTextures[ url ].lock();
 
 	// otherwise, check if the image has loaded and create a texture for it
 	ci::Surface surface;
 	if( mSurfaces.try_pop(url, surface) ) {
 		// done loading
 		mLoadingQueue.erase(url);
-
-		// perform garbage collection to make room for new textures
-		garbageCollect();
 		
 #ifdef _DEBUG 
 		console() << getElapsedSeconds() << ": creating Texture for '" << url << "'." << endl;
 #endif
-		ph::Texture tex( surface, fmt );
-		if(tex) {
-			mTextures[ url ] = tex;
-			return tex;
+		gl::TextureRef texture( new gl::Texture(surface, fmt), std::bind(&TextureStore::remove, this, url) );
+		if(texture) {
+			mTextures[ url ] = texture;
+			return texture;
 		}
 	}
 
@@ -165,17 +158,6 @@ bool TextureStore::abort(const string &url)
 	return mQueue.erase_all(url);
 }
 
-vector<string> TextureStore::getLoadExtensions()
-{
-	// TODO: ImageIO::getLoadExtensions() doesn't work, but use that instead once it does
-
-	vector<string> result;
-	result.push_back(".jpg");
-	result.push_back(".png");
-
-	return result;
-}
-
 bool TextureStore::isLoading(const string &url)
 {
 	return mLoadingQueue.contains(url);
@@ -186,25 +168,13 @@ bool TextureStore::isLoaded(const string &url)
 	return (mTextures.find( url ) != mTextures.end());
 }
 
-void TextureStore::garbageCollect()
+void TextureStore::remove(const std::string &url)
 {
-	for(std::map<std::string, ph::Texture>::iterator itr=mTextures.begin();itr!=mTextures.end();)
-	{
-		if(itr->second.getUseCount() < 2)
-		{
 #ifdef _DEBUG 
-			console() << getElapsedSeconds() << ": removing texture '" << itr->first << "' because it is no longer in use." << endl;
+	console() << getElapsedSeconds() << ": removing Texture '" << url << "' from cache." << endl;
 #endif
-			//itr = mTextures.erase(itr); //no return type for std::map erase();
-            //this should work
-            mTextures.erase(itr++);
-		}
-		else
-			++itr;
-	}
+	mTextures.erase(url);
 }
-
-//
 
 void TextureStore::threadLoad()
 {

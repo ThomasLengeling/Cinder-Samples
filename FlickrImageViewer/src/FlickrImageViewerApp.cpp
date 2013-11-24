@@ -46,8 +46,8 @@ public:
 	void keyDown( KeyEvent event );
 protected:
 	vector<string>	mUrls;
-	gl::Texture		mFront;
-	gl::Texture		mBack;
+	gl::TextureRef	mFront;
+	gl::TextureRef	mBack;
 
 	size_t			mIndex;
 
@@ -155,7 +155,7 @@ void FlickrImageViewerApp::update()
 		// if texture has been loaded and enough time has passed...
 		if(mBack && elapsed > (mTimeFade + mTimeView)) {
 			// swap the two textures
-			gl::Texture temp = mFront; mFront = mBack; mBack = temp;
+			gl::TextureRef temp = mFront; mFront = mBack; mBack = temp;
 			// keep track of how long the previous image was shown,
 			// so there will be no visual indication that we swapped the images
 			mTimeDuration = elapsed;
@@ -181,7 +181,7 @@ void FlickrImageViewerApp::draw()
 
 	// draw back image
 	if(mBack) {
-		Rectf image = mBack.getBounds();
+		Rectf image = mBack->getBounds();
 		Rectf window = getWindowBounds();
 		float sx = window.getWidth() / image.getWidth();	// scale width to fit window
 		float sy = window.getHeight() / image.getHeight();	// scale height to fit window
@@ -199,7 +199,7 @@ void FlickrImageViewerApp::draw()
 
 	// draw front image
 	if(mFront) {
-		Rectf image = mFront.getBounds();
+		Rectf image = mFront->getBounds();
 		Rectf window = getWindowBounds();
 		float sx = window.getWidth() / image.getWidth();
 		float sy = window.getHeight() / image.getHeight();
