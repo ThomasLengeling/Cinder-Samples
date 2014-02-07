@@ -21,7 +21,12 @@
 */
 
 #include "cinder/app/AppBasic.h"
+#include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
+#include "cinder/gl/Context.h"
+
+// platform-independent time functions
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 using namespace ci;
 using namespace ci::app;
@@ -76,6 +81,14 @@ void AnalogClockApp::draw()
 
 	// set current drawing color to white
 	gl::color( Color::white() );
+
+	// we always need a shader if we want to draw something,
+	// but since we're lazy (and like to keep things simple),
+	// let's not write one ourselves but use a stock shader that supports color
+	gl::GlslProgRef shader = gl::context()->getStockShader( gl::ShaderDef().color() );
+
+	// enable the shader using the GlslProgScope helper, so we don't forget to disable it later
+	gl::GlslProgScope glslProgScp( shader );
 
 	// draw the 12 hour digits
 	for(int h=0;h<12;++h)
@@ -139,17 +152,10 @@ void AnalogClockApp::keyDown( KeyEvent event )
 
 float AnalogClockApp::getSecondsSinceMidnight()
 {
-	float seconds = 0.0f;
+	using namespace boost::posix_time;
 
-	// this code only works on Windows
-#if defined( CINDER_MSW )
-	SYSTEMTIME now;
-	::GetLocalTime(&now);
-
-	seconds = float(now.wHour * 3600.0 + now.wMinute * 60.0 + now.wSecond);
-#endif	
-
-	return seconds;
+	ptime now = microsec_clock::local_time();
+	return float( now.time_of_day().total_seconds() );
 }
 
 // the following macro will create the application
