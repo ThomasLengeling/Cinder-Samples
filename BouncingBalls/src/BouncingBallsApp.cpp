@@ -24,8 +24,10 @@
 #include "cinder/Rand.h"
 #include "cinder/Timer.h"
 #include "cinder/app/AppBasic.h"
+#include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
-#include "cinder/gl/Vbo.h"
+#include "cinder/gl/Context.h"
+#include "cinder/gl/VboMesh.h"
 #include "cinder/gl/Texture.h"
 
 using namespace ci;
@@ -44,7 +46,7 @@ public:
 	void	reset();
 
 	void	update();
-	void	draw( const gl::VboMesh &mesh, bool useMotionBlur = true );
+	void	draw( const gl::VboMeshRef &mesh, bool useMotionBlur = true );
 
 	bool	isCollidingWith( BallRef other );
 	void	collideWith( BallRef other );
@@ -117,7 +119,7 @@ void Ball::update()
 	mHasBeenDrawn = false;
 }
 
-void Ball::draw( const gl::VboMesh &mesh, bool useMotionBlur )
+void Ball::draw( const gl::VboMeshRef &mesh, bool useMotionBlur )
 {
 	// store the current modelview matrix
 	gl::pushModelView();
@@ -136,14 +138,20 @@ void Ball::draw( const gl::VboMesh &mesh, bool useMotionBlur )
 			offset += difference;
 
 			gl::translate( difference );
-			gl::draw( mesh );
+			//gl::draw( mesh );
+
+			gl::context()->setDefaultShaderVars();
+			mesh->drawImpl();
 		}		
 	}
 	else {
 		// draw ball without motion blur
 		gl::color( mColor );
 		gl::translate( mPosition );
-		gl::draw( mesh );
+		//gl::draw( mesh );
+
+		gl::context()->setDefaultShaderVars();
+		mesh->drawImpl();
 	}
 
 	// restore the modelview matrix
@@ -276,8 +284,8 @@ private:
 	std::vector<BallRef> mBalls;
 
 	// mesh and texture
-	gl::VboMesh	mMesh;
-	gl::Texture mTexture;
+	gl::VboMeshRef	mMesh;
+	gl::TextureRef	mTexture;
 };
 
 void BouncingBallsApp::setup()
@@ -299,38 +307,12 @@ void BouncingBallsApp::setup()
 	for(size_t i=0;i<25;++i)
 		mBalls.push_back( BallRef( new Ball() ) );
 
+
 	// create ball mesh ( much faster than using gl::drawSolidCircle() )
-	size_t slices = 20;
+	mMesh = gl::VboMesh::create( geom::Circle().segments(20).radius(Ball::RADIUS) );
 
-	std::vector<Vec3f> positions;
-	std::vector<Vec2f> texcoords;
-	std::vector<uint32_t> indices;
-
-	indices.push_back( positions.size() );
-	texcoords.push_back( Vec2f(0.5f, 0.5f) );
-	positions.push_back( Vec3f::zero() );
-
-	for(size_t i=0;i<=slices;++i) {	
-		float angle = i / (float) slices * 2.0f * (float) M_PI;
-		Vec2f v(sinf(angle), cosf(angle));
-
-		indices.push_back( positions.size() );
-		texcoords.push_back( Vec2f(0.5f, 0.5f) + 0.5f * v );
-		positions.push_back( Ball::RADIUS * Vec3f(v, 0.0f) );
-	}
-
-	gl::VboMesh::Layout layout;
-	layout.setStaticPositions();
-	layout.setStaticTexCoords2d();
-	layout.setStaticIndices();
-
-	mMesh = gl::VboMesh( (size_t) (slices + 2), (size_t) (slices + 2), layout, GL_TRIANGLE_FAN );
-	mMesh.bufferPositions( &positions.front(), positions.size() );
-	mMesh.bufferTexCoords2d(0, texcoords);
-	mMesh.bufferIndices( indices );
-
-	// load texture
-	mTexture = gl::Texture( loadImage( loadAsset("ball.png") ) );
+	// load grayscale texture
+	mTexture = gl::Texture::create( loadImage( loadAsset("ball.png") ) );
 
 	// start simulation
 	mTimer.start();
@@ -368,16 +350,27 @@ void BouncingBallsApp::update()
 
 void BouncingBallsApp::draw()
 {
+	gl::GlslProgRef shader = gl::context()->getStockShader( gl::ShaderDef().color().texture(mTexture) );
+	gl::GlslProgScope glslProgScp( shader );
+
+	gl::TextureBindScope texBindScp( mTexture );
+
 	gl::clear(); 
 	gl::enableAdditiveBlending();
+	
+	// do all the setup for our mesh, so we can draw at blistering speeds
+	gl::context()->pushVao();
+	gl::context()->getDefaultVao()->freshBindPre();
+	mMesh->buildVao( shader );
+	gl::context()->getDefaultVao()->freshBindPost();
 
-	if(mTexture) mTexture.enableAndBind();
-
+	//
 	std::vector<BallRef>::iterator itr;
 	for(itr=mBalls.begin();itr!=mBalls.end();++itr)
 		(*itr)->draw( mMesh, mUseMotionBlur );
 
-	if(mTexture) mTexture.unbind();
+	//
+	gl::context()->popVao();
 
 	gl::disableAlphaBlending();
 }
@@ -442,8 +435,6 @@ void BouncingBallsApp::keyDown( KeyEvent event )
 		setFrameRate(100.0f);
 		break;
 	}
-    
-    //console()<<"key: "<<event.getCode()<<"\n";
 }
 
 void BouncingBallsApp::performCollisions()
