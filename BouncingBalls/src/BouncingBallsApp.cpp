@@ -30,6 +30,8 @@
 #include "cinder/gl/VboMesh.h"
 #include "cinder/gl/Texture.h"
 
+#define OPTIMIZE_FOR_CORE_PROFILE 1
+
 using namespace ci;
 using namespace ci::app;
 using namespace std;
@@ -138,20 +140,26 @@ void Ball::draw( const gl::VboMeshRef &mesh, bool useMotionBlur )
 			offset += difference;
 
 			gl::translate( difference );
-			//gl::draw( mesh );
 
+#if OPTIMIZE_FOR_CORE_PROFILE
 			gl::context()->setDefaultShaderVars();
 			mesh->drawImpl();
-		}		
+#else
+			gl::draw( mesh );
+#endif
+		}
 	}
 	else {
 		// draw ball without motion blur
 		gl::color( mColor );
 		gl::translate( mPosition );
-		//gl::draw( mesh );
 
+#if OPTIMIZE_FOR_CORE_PROFILE
 		gl::context()->setDefaultShaderVars();
 		mesh->drawImpl();
+#else
+		gl::draw( mesh );
+#endif
 	}
 
 	// restore the modelview matrix
@@ -358,19 +366,21 @@ void BouncingBallsApp::draw()
 	gl::clear(); 
 	gl::enableAdditiveBlending();
 	
-	// do all the setup for our mesh, so we can draw at blistering speeds
+#if OPTIMIZE_FOR_CORE_PROFILE
 	gl::context()->pushVao();
 	gl::context()->getDefaultVao()->freshBindPre();
 	mMesh->buildVao( shader );
 	gl::context()->getDefaultVao()->freshBindPost();
+#endif
 
 	//
 	std::vector<BallRef>::iterator itr;
 	for(itr=mBalls.begin();itr!=mBalls.end();++itr)
 		(*itr)->draw( mMesh, mUseMotionBlur );
 
-	//
+#if OPTIMIZE_FOR_CORE_PROFILE
 	gl::context()->popVao();
+#endif
 
 	gl::disableAlphaBlending();
 }
